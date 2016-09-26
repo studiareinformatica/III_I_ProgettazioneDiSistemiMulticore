@@ -1,5 +1,5 @@
 # Progettazione di Sistemi Multicore
-####*2016/2017 --- III Anno --- I Semestre*
+####*2016/2017 · III Anno · I Semestre*
 
 ----
 ##Linee Guida
