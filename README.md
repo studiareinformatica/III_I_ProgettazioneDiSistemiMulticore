@@ -28,9 +28,15 @@ I_I_MetodologieDiProgrammazione/
 
 ####Commit
 Per favorire la comprensione di ogni commit da parte di tutti, si consiglia il formato seguente per i *commit messages*:
+
 `nome branch: categoria update: breve descrizione`.
+
 Il nome branch è necessario solo se non si lavora sul `master`.
+
 Esempi:
+
 `lezione: update yyyy-mm-dd`
+
 `mod: aggiornato .gitignore`
+
 `misc: aggiunte foto appunti yyyy-mm-dd`
