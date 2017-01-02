@@ -1,4 +1,4 @@
-# Progettazione di Sistemi Multicore
+# Programmazione di Sistemi Multicore
 ####*2016/2017 · III Anno · I Semestre*
 
 ----

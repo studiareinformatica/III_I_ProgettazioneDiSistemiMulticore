@@ -1,8 +1,124 @@
-I processori multicore, che integrano più di una CPU su un unico chip, sono sempre più diffusi.\\
-In teoria, consentono di aumentare la potenza di elaborazione disponibile nella macchina aggirando le limitazioni tecnologiche (velocità di clock, dissipazione termica). In pratica, un programma seriale convenzionale, non potendo utilizzare più di una CPU, non può ottenere i vantaggi prestazionali promessi.\\
-Scopo di questo corso è di illustrare le potenzialità e i limiti dell'approccio, quali tecniche adoperare per rendere i codici più efficienti a parità di frequenza di clock, ed introdurre alcuni modelli di programmazione che permettono di suddividere le elaborazioni di un unico programma su più CPU, senza dover ricorrere esplicitamente a processi intercomunicanti o ai \textit{thread}.
+\section{Panoramica}
+1965: \\
+\textit{\textquotedblleft La complessità di un microcircuito, misurata ad esempio tramite il numero di transistori per chip, raddoppia ogni 18 mesi. (\textit{Gordon More}) \textquotedblright}\\\\
 
-\section{La Prima Legge di Moore}
-\textit{\textquotedblleft La complessità di un microcircuito, misurata ad esempio tramite il numero di transistori per chip, raddoppia ogni 18 mesi. \textquotedblright}\\\\
 La prima legge di Moore è tratta da un'osservazione empirica di Gordon Moore, cofondatore di Intel con Robert Noyce: nel 1965, Gordon Moore, che all'epoca era a capo del settore R\&D della Fairchild Semiconductor e tre anni dopo fondò la Intel, scrisse infatti un articolo su una rivista specializzata nel quale illustrava come nel periodo 1959-1965 il numero di componenti elettronici (ad esempio i transistor) che formano un chip fosse raddoppiato ogni anno. \\
-Nel 1975 questa previsione si rivelò corretta e prima della fine del decennio i tempi si allungarono a due anni, periodo che rimarrà valido per tutti gli anni ottanta. La legge, che verrà estesa per tutti gli anni novanta e resterà valida fino ai nostri giorni, viene riformulata alla fine degli anni ottanta ed elaborata nella sua forma definitiva, ovvero che il numero di transistori nei processori raddoppia ogni 18 mesi. Questa legge è diventata il metro e l'obiettivo di tutte le aziende che operano nel settore, come Intel e AMD.
+Nel 1975 questa previsione si rivelò corretta e prima della fine del decennio i tempi si allungarono a due anni, periodo che rimarrà valido per tutti gli anni ottanta. La legge, che verrà estesa per tutti gli anni novanta e resterà valida fino ai nostri giorni, viene riformulata alla fine degli anni ottanta ed elaborata nella sua forma definitiva, ovvero che il numero di transistori nei processori raddoppia ogni 18 mesi. Questa legge è diventata il metro e l'obiettivo di tutte le aziende che operano nel settore, come Intel e AMD. \\\\
+
+Nel 2001, ci si accorse che l'aumento della potenza dei processori portava ad un drastico aumento del consumo energetico e della dissipazione del calore.
+Per questa ragione, dal 2005, si iniziò ad aumentare il numero di \textit{core} del processore, invece del \textit{clock rate}. \\
+Da questo punto nasce la definizione di \textit{programmazione sequenziale} e di \textit{programmazione parallela}, che influiscono in diversi ambiti:
+\begin{itemize}
+	\item \textit{Programmazione}: dividere il lavoro in diversi \textit{thread} di esecuzione, in sincronizzazione l'uno con l'altro;
+	\item \textit{Algoritmi}: come può l'attività parallela fornire \textit{speedup} al lavoro offerto dall'algoritmo (aumento del \textit{throughput}, \textit{lavoro}/\textit{unità di tempo});
+	\item \textit{Strutture dati}: nasce la necessità di fornire accesso concorrente alle strutture dati.
+\end{itemize}
+
+\subsection{Concorrenza}
+La nascita della parallelizzazione in programmazione ha portato alla comparsa di un problema preponderante: la gestione della concorrenza. \\
+Questa impone che venga gestito in maniera adeguata l'accesso alle risorse condivise dai vari thread, dove le operazioni devono essere scandite in ordine corretto in maniera tale da fornire risultati corretti e dove si necessita di sincronizzazione attraverso funzioni primitive (come i \textit{semafori}). \\
+In sintesi la differenza tra \textit{parallelismo} e \textit{concorrenza} è che la prima offre l'uso di diverse risorse extra per risolvere un problema più rapidamente, la seconda offre la corretta gestione degli accessi alle risorse condivise.
+
+\section{Background teorico}
+Lo \textit{speedup} su \textit{n} processi è definito come:
+\begin{center}
+	$S_{n} = \frac{t_{s}}{t_{n}}$
+\end{center}
+Dove:
+\begin{itemize}
+	\item $t_s$ è il tempo di esecuzione su un solo processo;
+	\item $n$ è il numero di processori;
+	\item $t_n$ è il tempo di esecuzione su \textit{n} processori.
+\end{itemize}
+L'efficienza, invece, è definita come:
+\begin{center}
+	$E_{n} = \frac{S_{n}}{n} = \frac{t_{s}}{n\times t_{n}}$ \\
+\end{center}
+
+\subsection{Legge di Amdahl}
+Nel 1967, \textit{Amdahl} definisce la seguente legge: \textit{dato un'applicazione parallela, dove la frazione $f$ è inerentemente sequenziale, il migliore speedup possibile su $n$ processori è definito dalla seguente formula}
+\begin{center}
+	$S(n) \leq \frac{1}{f + \frac{1 - f}{n}} \Rightarrow S(\infty) = \lim_{n\rightarrow \infty} S(n) = \frac{1}{f} $
+\end{center}
+
+\paragraph{Implicazioni}
+Dunque lo \textit{speedup} di un programma che utilizza più processori è limitato dal tempo necessario dalla frazione sequenziale dello stesso. \\
+Ad esempio: un programma necessita di 20h su un singolo core, e una particolare porzione del programma che richiede 1h per l'esecuzione (quini il 5\%) non può essere parallelizzata, mentre le rimanenti 19h (ovvero il 95\%) può esserlo. Indifferentemente da quanti processori sono destinati alla parallelizzazione, il \textit{wallclock time} (\textit{tempo di esecuzione}) non può essere minore di 1h. Quindi, teoricamente lo \textit{speedup} è limitato al massimo fino a 20x. \\
+Inoltre, praticamente può andare anche peggio, perché non abbiamo tenuto conto del costo del \textit{load balancing}, della \textit{comunicazione}, della \textit{coordinazione} tra threads, che porta ad un \textit{overhead addizionale}.
+
+\subsection{Legge di Gustafson}
+1988:
+\begin{center}
+	$S(n) \leq \alpha + n(a-\alpha) = n - \alpha (n-1)$
+\end{center}
+Dove:
+\begin{itemize}
+	\item $n$ è il numero di cores;
+	\item $a$ è la parte sequenziale;
+	\item $b$ è la parte parallela (eseguita da un core degli $n$);
+	\item $a+b$ è il tempo di esecuzione parallela su $n$ cores (senza \textit{overhead});
+	\item $a+n\times b$ è il tempo totale di esecuzione serializzata;
+	\item $\alpha = \frac{a}{a+b}$ è la frazione sequenziale del tempo di esecuzione parallelo.
+\end{itemize}
+Sostanzialmente, \textit{Gustafson} si accorse che aumentando il numero $n$ di processori, con lo stesso ammontare di tempo, si potevano risolvere problemi di grandezza maggiore e che la grandezza del problema cresce monotonamente con $n$, così che la frazione sequenziale del \textit{workload} non domina. \\
+Quindi, aumentando il \textit{workload} insieme con il numero di processori, si ottiene più \textit{speedup}.
+
+\paragraph{Implicazioni}
+$S(n) \leq n - \alpha (n-1)$, e quindi se la frazione sequenziale $\alpha$ è piccola, si può arrivare ad ottenere uno \textit{speedup} vicino ad $n$. \\
+Inoltre, nasce la definizione di \textit{forte} e \textit{debole scalabilità}:
+\begin{itemize}
+	\item \textit{scalabilità forte} (\textit{strong scaling}): vogliamo sapere quanto rapidamente possiamo completare l'analisi di un particolare insieme di dati incrementando il numero di processori;
+	\item \textit{scalabilità debole} (\textit{weak scaling}): vogliamo sapere se possiamo analizzare più dati approssimativamente nello stesso tempo, incrementando il numero di processori.
+\end{itemize}
+
+\section{Sistemi di Calcolo parallelo}
+Vecchia classificazione hardware:
+\begin{center}
+	\begin{tabular}{| c | c | c |}
+		\hline
+		\textbf{} & \textbf{Singola istruzione} & \textbf{Istruzione multipla} \\ \hline
+		\textit{Single data} & SISD & MISD \\
+		\textit{Multiple data} & SIMD & MIMD \\
+		\hline
+	\end{tabular}
+\end{center}
+Dove:
+\begin{itemize}
+	\item \textbf{SISD}: nessuna parallelizzazione, né nei \textit{mainframes} (\textit{data stream}), né nelle istruzioni;
+	\item \textbf{SIMD}: parallelizzazione dei dati (\textit{stream processors}, \textit{GPUs}). Una singola \textit{control unit} spedisce la stessa istruzione a più processori che lavorano su dati diversi;
+	\item \textbf{MISD}: istruzioni multiple operanti sugli stessi \textit{data stream} (inusuale);
+	\item \textbf{MIMD}: istruzioni multiple operanti indipendentemente su \textit{data stream} multipli (computer più recenti). Ogni processore ha la sua \textit{control unit} e può eseguire dierse istruzioni su dati differenti.
+\end{itemize}
+
+Esistono due forme primarie di scambio dati tra task paralleli:
+\begin{enumerate}
+	\item accedendo a uno spazio dati condiviso: \textit{memoria condivisa} (\textit{multi-processori}). Piattaforme:
+	\begin{enumerate}
+		\item \textbf{NUMA} (macchina con \textit{non-uniform memory access}): un processore può accedere alla sua memoria locale più rapidamente rispetto alla memoria non locale;
+		\item \textbf{UMA} (macchina con \textit{uniform memory access}): tutti gli accessi hanno pari velocità.
+	\end{enumerate}
+	\item scambiando messaggi in una rete: \textit{memoria distribuita} (\textit{multi-computers});
+	\item utilizzando sistemi ibridi (\textit{hybrid systems}), sia con memoria condivisa che distribuita: ogni nodo ha una sua memoria ed $n$ processori. Quando necessita di più di $n$ processori, utilizza lo scambio di messaggi in rete;
+	\item utilizzando sistemi multicore (\textit{multicore systems}), estendendo i sistemi ibridi e prevendendo l'utilizzo di \textit{memoria cache}, \textit{accesso alla memoria principale} e di una connessione \textit{node-to-node} attraverso la rete;
+	\item utilizzando sistemi accellerati (\textit{accelerated systems}), dove le computazioni vengono eseguite sia dalla CPU che dagli \textit{acceleratori}. Esistono diversi tipi di acceleratori:
+	\begin{itemize}
+		\item \textbf{GPGPU} (\textit{general purpose graphical processing unit}), fornisce grafica via hardware, utilizzando modelli, librerie e compilatori indipendenti come \textit{CUDA} e \textit{OpenCL};
+		\item \textbf{MIC} (\textit{many integrated core}), una tradizionale CPU hardware.
+	\end{itemize}
+\end{enumerate}
+
+\section{Modelli di Programmazione parallela}
+Nella prima parte del corso si utilizzerà \textit{memoria condivisa con thread espliciti}. \\
+Precedentemente, un programma sequenziale aveva:
+\begin{enumerate}
+	\item un \textit{program counter};
+	\item una \textit{call stack};
+	\item degli oggetti nell'\textit{heap};
+	\item dei campi statici.
+\end{enumerate}
+Ora, in programmi a memoria condivisa con thread espliciti:
+\begin{enumerate}
+	\item un set di \textit{thread}, ognuno con il suo \textit{program counter} e la sua \textit{call stack};
+	\item i thread possono implicitamente condividere campi statici e oggetti;
+	\item \textit{scheduler} di thread.
+\end{enumerate}

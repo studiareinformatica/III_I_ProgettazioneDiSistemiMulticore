@@ -1,0 +1,43 @@
+\section{Parallelizzazione in Java}
+\textit{Java} fornisce un framework builtin basico per la gestione dei thread, attraverso gli oggetti \textit{java.lang.Thread} e l'\textit{overriding} del metodo \textit{run()}, per definire le attività che il singolo thread eseguirà. Per lanciare il thread, basterà chiamare il metodo \textit{start()}. \\
+\begin{lstlisting}
+class ExampleThread extends java.lang.Thread {
+	
+	int i;
+	
+	ExampleThread(int i) {
+		this.i = i;
+	}
+	
+	public void run() {
+		System.out.println("Thread " + i + " says hi");
+		System.out.println("Thread " + i + " says bye");
+	}
+}
+class M {
+	public static void main(String[] args) {
+		for (int i=1, i <= 20; i++) {
+			ExampleThread t = new ExampleThread(i);
+			t.start();
+		}
+	}
+}
+\end{lstlisting}
+
+\subsection{Fork/Join}
+La tecnica di programmazione parallela \textit{fork/join} nasce dalla modalità di gestire la parallelizzazione attraverso l'utilizzo dei metodi \textit{fork()} (non propriamente un metodo - java -, ma la funzione primitiva con cui vengono generati tutti i processi, così come i processi figli e i thread) e \textit{join()} (utilizzato dal chiamante al thread figlio per rimanervi agganciato fino alla terminazione dello stesso).
+
+\section{Quanti thread?}
+La gestione del numero dei thread partoriti da un programma gioca un ruolo fondamentale nell'ottimizzazione del programma stesso. E' importantissimo sapere gestire il problema del numero e il tipo di lavoro eseguito dai thread adeguatamente, altrimenti l'utilizzo stesso di questi ultimi rischierebbe di rendere l'esecuzione dell'applicativo più lenta di quella in modalità serializzata. \\
+L'idea più comune è quella di utilizzare un numero di thread pari al numero di core del processore in utilizzo, ma non si tratta di una soluzione accurata. D'altra parte, è molto più utile avere un numero di thread largamente più alto rispetto a quello dei core:
+\begin{itemize}
+	\item \textit{forward-portable}: codice indipendente dal numero di processori;
+	\item viene gestita una notevole quantità di lavoro in maniera distribuita attraverso grandi pile di thread, alternati così l'uno all'altro;
+	\item viene garantito il \textit{load balancing}, perché gestiti piccole porzioni di lavoro alla volta.
+\end{itemize}
+Il problema fondamentale è che se necessitiamo di acquisire risultati su diversi thread, è pesante doversi scorrere l'intera lista per ricercare informazioni e prelevarle dagli stessi o da alcuni di essi. \\
+Altro problema molto pratico: la classe builtin Java \textit{java.lang.Thread} non è adatta alla gestione di piccoli tasks; così, un numero elevato di thread, porta ad un grande \textit{overhead}.
+
+\subsubsection{Divide et Impera}
+Per risolvere questo tipo di problema (nella gestione e ricerca degli innumerevoli thread in coda, per l'acquisizione di informazioni relative alla loro esecuzione per esempio), si ricorre spesso a logiche algoritmiche diverse, come nel caso di \textit{divide et impera}. \\
+L'idea è quella di generare ricorsivamente, attraverso ciascun thread, nuovi thread. Così che ognuno di essi ne abbia in gestione altri, ma riducendo la mole di ciascuno e il costo di ricerca delle informazioni.
