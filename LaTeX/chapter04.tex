@@ -61,4 +61,74 @@ class BankAccount {
 	}
 }
 \end{lstlisting}
-I \textit{lock} sono privati, e in questo modo prevengono il fatto che il codice in altre classi possa eseguire operazioni sensibili.
+I \textit{lock} sono privati, e in questo modo prevengono il fatto che il codice in altre classi possa eseguire operazioni sensibili. \\
+
+Una \textit{race condition} si verifica quando il risultato computazionale dipende dallo scheduling, e quindi due thread si sovrappongono, e rappresenta un bug esistente solo a causa della concorrenza.
+Due tipi di \textit{race condition} diversi sono i \textit{data races} e i \textit{bad interleavings}: la differenza sostanziale sta nel fatto che un \textit{data race} si verifica quando si presentano due accessi \textit{read/write} o \textit{write/write} alla stessa locazione di memoria simultaneamente. Dl'altra parte, una \textit{bad interleaving}, invece, è causata da l'esposizione in sezioni critiche di dati in uno stato intermedio inconsistente, nonostanza di \textit{data race}. \\
+E' quindi responsabilità del programmatore evitare che si verifichino \textit{data races}. \\
+
+\subsubsection{Variabili volatili}
+Oltre alle soluzioni già proposte, esiste poi un altro metodo, quello di utilizzare le variabili \textit{volatili}: questo sistema forza l'applicazione a non fare \textit{caching} delle variabili inizializzate come volatili, così da necessitare un accesso diretto alla memoria per ogni interazione con le suddette. E' un sistema intelligente e più efficiente rispetto alla \textit{synchronized}, ma da evitare in caso di lunghe sezioni critiche.
+
+\subsection{Utilizzare correttamente i locks}
+Per ogni locazione di memoria, occorre osservare almeno una delle seguenti regole:
+\begin{enumerate}
+	\item \textit{thread-local}: non utilizzare la variabile in più di un thread:
+	dove possibile, sempre meglio evitare di condividere risorse, ma questo è possibile solo se il thread non deve comunicare attraverso di esse;
+	\item \textit{immutabile}: non scrivere nella locazione di memoria:
+	se il thread utilizza una locazione di variabili in lettura per tutta la sua esecuzione, allora è inutile complicarsi la vita, non c'è bisogno di sincronizzazione; in tal caso è utile passare nuovi oggetti ai thread;
+	\item \textit{synchronized}: utilizzare la sincronizzazione per controllare gli accessi.
+\end{enumerate}
+
+Una volta appurato che rispettiamo adeguatamente le prime due regole, occorre sapere come mantenere i dati consistenti, evitando \textit{data races}:
+\begin{enumerate}
+	\item non permettere mai che due thread accedano simultaneamente in \textit{read/write} o \textit{write/write} alla stessa loaczione;
+	\item per ciascuna locazione di memoria che necessita di sincronizzazione, controllare che sia sempre gestita nelle fasi di \textit{read} o \textit{write}, utilizzando \textit{lock guards};
+	\item cominciare sempre con una politica di \textit{coarse-grained} e muoversi verso la \textit{fine-grained} soltanto se specificatamente richiesto e/o necessario. Esistono infatti due politiche di \textit{locking}:
+	\begin{itemize}
+		\item \textit{coarse-grained}: utilizzando meno \textit{locks}, ciascuno per più oggetti:
+		\begin{itemize}
+			\item è più semplice da implementare;
+			\item più semplice gestire le operazioni che accedono alle locazioni di memoria.
+		\end{itemize}
+		\item \textit{fine-grained}: utilizzando più \textit{locks}, ciascuno per meno oggetti:
+		\begin{itemize}
+			\item più accessi contemporanei (più performante rispetto al \textit{coarse-grained}, che invece bloccherebbe anche quando non necessario).
+		\end{itemize}
+	\end{itemize}
+	\item evitare di fare grandi computazioni o attività I/O nelle sezioni critiche, ma fare in ogni caso attenzione a dare - in questo modo - accessi alternati in lettura scrittura di tipo \textit{A-B-A};
+	\item pensare sempre in termini di quali operazioni necessitano di essere atomiche, e formare le sezioni critiche limitatamente a quelle operazioni;
+	\item utilizzare librerie builtin ogni volta che vengono in tuo aiuto.
+\end{enumerate}
+
+\section{Deadlocks}
+Una \textit{deadlock} si presenta quando ci sono $T_{1}, \ldots, T_{n}$ thread tali che:
+\begin{itemize}
+	\item per ciascuna $i = 1, \ldots, n-1$, $T_{i}$ è in attesa di una risorsa bloccata da $T_{i+1}$;
+	\item $T_{n}$ è in attesa di una risorsa bloccata da $T_{1}$.
+\end{itemize}
+In altre parole, si tratta di un ciclo di attese; pertanto, evitare in programmazione di andarci incontro, significa evitare che si presenti mai un possibile ciclo.
+Quindi, ancora, occorre cercare di rendere le sezioni critiche più piccole possibile, utilizzare più possibile una granularità \textit{coarsen} dei locks e fare in modo tale che ogni lock venga acquisito sempre nello stesso ordine.
+
+\section{Lock lettore/scrittore}
+In questo caso il \textit{lock} può essere di tre tipi:
+\begin{enumerate}
+	\item non acquisito;
+	\item acquisito per scrittura da un thread;
+	\item acquisito per lettura da uno o più thread.
+\end{enumerate}
+Quindi, avrà i seguenti metodi:
+\begin{itemize}
+	\item \textit{new()}: inizializzerà un nuovo \textit{lock} con stato \textit{non acquisito};
+	\item \textit{acquire\_write()}: attende se lo stato corrente del \textit{lock} è \textit{acquisito per lettura} o \textit{acquisito per scrittura}, altrimenti lo rende \textit{acquisito per scrittura};
+	\item \textit{release\_write()}: rende lo stato del \textit{lock} \textit{non acquisito};
+	\item \textit{acquire\_read()}: attende se lo stato corrente del \textit{lock} è \textit{acquisito per scrittura}, altrimenti lo rende/mantiene \textit{acquisito per lettura} e incrementa il numero di lettori;
+	\item \textit{release\_read()}: decrementa il numero di lettori e, se questo è $0$, rende lo stato del \textit{lock} \textit{non acquisito}.
+\end{itemize}
+
+Quindi, nel problema \textit{lettore/scrittore}, tendenzialmente viene data la priorità agli scrittori.
+Il \textit{synchronized} di \textit{Java} non supporta il lock \textit{lettore/scrittore}, ma esiste la libreria \textit{java.util.concurrent.locks.ReentrantReadWriteLock}:
+\begin{itemize}
+	\item non hanno stessa interfaccia: per questo i metodi \textit{readLock()} e \textit{writeLock()} ritornano oggetti che hanno a loro volta i metodi \textit{lock()} e \textit{unlock()};
+	\item non da priorità allo scrittore.
+\end{itemize}
