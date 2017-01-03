@@ -1,0 +1,64 @@
+\section{Concorrenza}
+Gli algoritmi hanno e devono avere sempre una struttura molto semplice per evitare che si verifichino \textit{race conditions}, gestendo nella maniera migliore possibile gli accessi (anche simultanei) alle risorse condivise tra diversi clienti. \\
+Questo richiede coordinazione e sincronizzazione per evitare che accessi simultanei, facendo in modo tale che qualcuno si \textit{blocchi}, fino a che il thread che ha acceduto non ha finito di usare la risorsa. \\
+In questi casi, i thread non sono utili ai fini del parallelismo, ma per avere maggiore responsività nella struttura del codice (come la risposta a eventi \textit{GUI}), maggior sfruttamento della \textit{CPU} e isolamento degli errori. \\
+
+\subsection{Condivisione}
+E' molto comune nei programmi concorrenti che diversi thread possano accedere alle stesse risorse in memoria, ma questo può causare sovrapposizioni nell'accesso e modifica delle stesse. \\
+Si introduce quindi la \textit{mutua esclusione} nella \textit{sezione critica} (ovvero dove si accede/modifica quella risorsa di memoria), utilizzabile attraverso il linguaggio in uso.
+Una soluzione di base sono i \textit{lock}, che seguono tre fasi fondamentali:
+\begin{itemize}
+	\item \textit{new}: crea un nuovo \textit{lock}, con stato \textit{not held};
+	\item \textit{acquire}: acquisice un \textit{lock}, portandolo allo stato \textit{held};
+	\item \textit{release}: porta il \textit{lock} di nuovo a \textit{not held}.
+\end{itemize}
+Quindi l'istanza \textit{lock} sarà posta ai margini della \textit{sezione critica} nel codice, prima chiamando l'\textit{acquire()} e dopo il \textit{release()}. \\
+In ogni caso, l'uso dei \textit{lock} non è granché comodo, perché prevede che si tenga sempre conto dello stato del \textit{lock}, casa scarsa performance e come lavora sui \textit{setters} e \textit{getters}? \\
+Una parziale soluzione potrebbe essere usare i \textit{re-entrant lock} (o \textit{recursive lock}), che detiene sia il thread che lo sta bloccando e un conteggio. L'\textit{acquire()} ha successo se e solo se il thread che lo vuole bloccare è lo stesso che lo sta richiedendo, in questo caso viene incrementato il conteggio. Nel \textit{release()}, se il conteggio è $> 0$, il conteggio viene decrementato, e una volta a $0$, lo stato del \textit{lock} viene posto a \textit{not held}.
+
+\subsection{Java}
+\textit{Java} supporta i re-entrant locks in maniera primitiva, tramite lo statement builtin \textit{synchronized}, che valuta l'espressione in input (perché ogni oggetto in \textit{Java}, ad eccezione dei primitivi, è un \textit{lock}), acquisisce il \textit{lock}, entrando nella parentesi graffa \textit{"\{"}, bloccandolo se necessario, e lo rilascia uscendo dalla parentesi graffa \textit{"\}"}.
+\begin{lstlisting}
+class BankAccount {
+
+	private int balance = 0;
+	private Object lk = new Object();
+
+	int getBalance() {
+		synchronized (lk) { return balance; }
+	}
+
+	void setBalance(int x){
+		synchronized (lk) { balance = x; }
+	}
+
+	void withdraw(int amount) {
+		synchronized (lk) {
+			int b = getBalance();
+			if (amount > b) {
+				setBalance(b - amount);
+			}
+		}
+	}
+}
+\end{lstlisting}
+
+\newpage
+Altro metodo di utilizzare il \textit{synchronized} è di porlo come scopo sul metodo:
+\begin{lstlisting}
+class BankAccount {
+
+	private int balance = 0;
+
+	synchronized int getBalance() { return balance; }
+	synchronized void setBalance(int x) { balance = x; }
+
+	synchronized void withdraw(int amount) {
+		int b = getBalance();
+		if(amount > b) {
+			setBalance(b - amount);
+		}
+	}
+}
+\end{lstlisting}
+I \textit{lock} sono privati, e in questo modo prevengono il fatto che il codice in altre classi possa eseguire operazioni sensibili.

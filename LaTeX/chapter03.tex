@@ -1,0 +1,174 @@
+\section{Pattern paralleli più complessi}
+Il problema della somma dei prefissi sembra un problema senza soluzione parallelizzabile. \\
+Partiamo dal problema: dato un input $int[]$, bisogna produrre un output $int[]$, dove:
+\begin{center}
+	$output[i] = input[0] + input[1] + \ldots + input[i]$
+\end{center}
+Un ipotetico codice sequenziale potrebbe dettare come segue:
+\begin{lstlisting}
+int[] prefix_sum(int[] input) {
+	int[] output = new int[input.length];
+	output[0] = input[0];
+	for (int i=1; i<input.length; i++)
+		output[i] = output[i-1] + input[i];
+	return output;
+}
+\end{lstlisting}
+Non sembra essere un problema parallelizzabile perché:
+\begin{itemize}
+	\item il \textit{DAG} è una catena, a causa delle dipendenze tra nodi;
+	\item ha un \textit{work} pari a $O(n)$ e uno \textit{span} $O(n)$.
+\end{itemize}
+In ogni caso, un algoritmo differente può raggiungere \textit{span} $O(\log{n}))$.
+
+\subsection{Hillis \& Steele (1986)}
+L'idea è che all'inizio di ciascuna iterazione $i$, per $i \geq 0$; ogni elemento $A[x]$ dell'array contiene la somma di al massimo $2^{i}$ elementi precedenti, incluso $input[x]$). \\
+\paragraph{Caso base}
+Sicuramente nel primo caso, per $i=0$, è verificato, in quanto vi sono elementi singoli.
+\paragraph{Passo induttivo}
+Se la proprietà è vera per l'iterazione $i$, vuol dire che è vera anche per l'iterazione $i+1$:
+\begin{itemize}
+	\item durante l'iterazione $i+1$, settiamo $A[x] = A[x] + A[x-2^{i}]$;
+	\item per ipotesi induttiva: $A[x] = input[x] + input[x-1] + \ldots + input[x-(2^{i}-1)]$;
+	\item per ipotesi induttiva: $A[x-2^{i}] = input[(x-2^{i})] + input[(x-2^{i})-1] + \ldots + input[(x-2^{i})-(2^{i}-1)]$;
+	\item quindi, dopo l'iterazione $i+1$, $A[x]$ conterrà la somma (al massimo) dei suoi $2^{i} + 2^{i} = 2^{i+1}$ elementi immediatamente precedenti.
+\end{itemize}
+
+\subsubsection{Analisi dell'algoritmo}
+Avremo $\log{n}$ iterazioni, quindi $span = O(\log{n})$; inoltre, ogni iterazione avrà $work = O(n)$, per un totale di $\Theta(n\times \log{n})$. \\
+Quindi il \textit{work} è più alto rispetto alla soluzione sequenziale, ma si riesce a parallelizzare. La soluzione \textit{parallel-prefix} ha un parallelismo di $\frac{n}{\log{n}}$, quindi, speedup esponenziale. \\
+Questo tipo di soluzione, compie due passi:
+\begin{enumerate}
+	\item costruisce un albero in un movimento \textit{bottom-up}, il passo \textit{up}: crea un albero binario, dove la radice ha somma nell'intervallo $[0,n)$ e dove se un nodo ha somma nell'intervallo $[lo, hi)$ e $hi>lo$, allora:
+	\begin{itemize}
+		\item il figlio sinistro ha somma in $[lo, middle)$;
+		\item il figlio destro ha somma in $[middle, hi)$;
+		\item una foglia ha somma in $[i, i+1)$, per esempio, $input[i]$.
+	\end{itemize}
+	Questa è una facile computazione \textit{fork-join}: combina risultati dalla costruzione di un albero binario con tutte le somme degli intervalli (con \textit{work} $O(n)$ e \textit{span} $O(\log{n})$).
+	\item attraversa l'albero in un movimento \textit{top-down}, il passo \textit{down}, operando su un valore \textit{fromLeft}:
+	\begin{itemize}
+		\item la radice da un valore \textit{fromLeft} di $0$;
+		\item il nodo prende questo valore \textit{fromLeft} e:
+		\begin{itemize}
+			\item passa lo stesso al figlio sinistro;
+			\item passa $fromLeft$ sommato alla somma del figlio sinistro al figlio destro.
+		\end{itemize}
+		\item alla foglia in posizione $i$: $output[i] = fromLeft + input[i]$.
+	\end{itemize}
+	Ancora, sembra una facile computazione \textit{fork-join}: attraversare l'albero costruito nel primo passo e non produrre nessun risultato (con \textit{work} $O(n)$ e \textit{span} $O(\log{n})$).
+\end{enumerate}
+Ancora, aggiungere un \textit{sequential cutoff} è molto semplice: per la fase \textit{up}, si tratta di una semplice somma, per cui il nodo foglia mantiene la somma di un intervallo; per la fase \textit{down}:
+\begin{lstlisting}
+output[lo] = fromLeft + input[lo];
+for (i=lo+1; i<hi; i++)
+	output[i] = output[i-1] + input[i];
+\end{lstlisting}
+
+\subsection{Problemi con condizione di verifica}
+Dato un array \textit{input}, produrre un array \textit{output} contenente solo gli elementi per cui $f(element)$ è \textit{true}. \\
+Esempio:
+\begin{center}
+	\begin{tabular}{| l | c |}
+		\hline
+		\textbf{input} & $[17,4,6,8,11,5,13,19,0,24]$ \\
+		\textbf{f} & $element > 10$ \\
+		\textbf{output} & $[17,11,13,19,24]$ \\
+		\hline
+	\end{tabular}
+\end{center}
+E' parallelizzabile? Rintracciare gli elementi è molto semplice (attraverso una mappa), ma metterli al giusto posto sembra complesso:
+\begin{enumerate}
+	\item Mappa parallela per calcolare un bit-vector per gli elementi per cui $element > 10 = true$;
+	\begin{center}
+		\begin{tabular}{| l | c |}
+			\hline
+			\textbf{input} & $[17,4,6,8,11,5,13,19,0,24]$ \\
+			\textbf{bits} & $[1,0,0,0,1,0,1,1,0,1]$ \\
+			\hline
+		\end{tabular}
+	\end{center}
+	\item prefix-sum parallelo del bit vector:
+	\begin{center}
+		\begin{tabular}{| l | c |}
+			\hline
+			\textbf{bitsum} & $[1,1,1,1,2,2,3,4,4,5]$ \\
+			\hline
+		\end{tabular}
+	\end{center}
+	\item mappa parallela per produrre l'output:
+	\begin{center}
+		\begin{tabular}{| l | c |}
+			\hline
+			\textbf{output} & $[17,11,13,19,24]$ \\
+			\hline
+		\end{tabular}
+		\begin{lstlisting}
+output = new array of size bitsum[n-1]
+FORALL (i=0; i<input.length; i++) {
+	if (bits[i] == 1)
+		output[bitsum[i]-1] = input[i];
+}
+		\end{lstlisting}
+	\end{center}
+\end{enumerate}
+
+\paragraph{Analisi}
+L'algoritmo ha un \textit{work} $O(n)$ e \textit{span} $O(\log{n})$.
+
+\subsection{QuickSort parallelo}
+\begin{center}
+	\begin{tabular}{| l | l | r |}
+		\hline
+		\textbf{\#} & \textbf{passo} & \textbf{costo} \\ \hline
+		1 & Prendere un elemento \textit{pivot} & $O(1)$ \\
+		2 & Partizionare i dati in $A = elem < pivot$, $B = pivot$, $C = elem > pivot$ & $O(n)$ \\
+		3 & Ordinare ricorsivamente $A$ e $C$ & $2T(\frac{n}{2})$ \\
+		\hline
+	\end{tabular}
+\end{center}
+L'approccio più semplice è eseguire il terzo passo in parallelo, con i seguenti risultati: \textit{work} $\Theta(n\times \log{n})$ inalterato, \textit{span} $T(n) = \Theta(n) + 1T(\frac{n}{2}) = \Theta(n)$ alterato e quindi \textit{parallelismo} $O(\log{n})$. \\
+Avere uno speedup di $O(\log{n})$ con un numero infinito di processori non è un granché, si può fare molto meglio se parallelizzato anche la fase di partizionamento:
+\begin{itemize}
+	\item si prenda come \textit{pivot} il mediano dell'albero;
+	\item inserire gli elementi minori del \textit{pivot} in un array ausiliario \textit{aux}, poi il \textit{pivot} e poi i maggiori;
+	\item lanciati i sort paralleli ricorsivamente sui due subarray.
+\end{itemize}
+Per ogni \textit{pack}, abbiamo un \textit{work} di $O(n)$ e \textit{span} $O(\log{n})$. Con $O(\log{n})$ di \textit{span} per il partizionamento, il miglior caso in assoluto e l'atteso per il \textit{quicksort} è:
+\begin{center}
+	$T(n) = O(\log{n}) + 1T(\frac{n}{2}) = O(\log^{2}{n})$
+\end{center}
+
+\subsection{MergeSort parallelo}
+\begin{center}
+	\begin{tabular}{| l | l | r |}
+		\hline
+		\textbf{\#} & \textbf{passo} & \textbf{\textit{work} nel \textit{worst-case}} \\ \hline
+		1 & Ordinare la metà di sinistra e la metà di destra & $2T(\frac{n}{2})$ \\
+		2 & Unire i risultati & $\Theta(n)$ \\
+		\hline
+	\end{tabular}
+\end{center}
+Esattamente come nel \textit{quicksort}, eseguire i due ordinamenti in parallelo cambia lo \textit{span} in $T(n) = O(n) + 1T(\frac{n}{2}) = O(n)$. Ancora, il \textit{parallelismo} è di $O(\log{n})$. Perciò, per migliorare, occorre parallelizzare il \textit{merge} dei due risultati (non utilizzando il \textit{parallel-prefix, questa volta}). \\
+Dovendo unire i due subarray, consideriamo che quello di grandezza maggiore dei due abbia $m$ elementi. Quindi, in parallelo:
+\begin{itemize}
+	\item unire i primi $m/2$ elementi della metà più grande con gli elementi appropriati della metà minore;
+	\item unire i secondi $m/2$ elementi della metà più grande con il resto della metà minore.
+\end{itemize}
+Questo approccio porta a un \textit{work} di:
+\begin{center}
+	$W(n) = W(\frac{3n}{4}) + W(\frac{n}{4}) + O(\log{n}) = O(n)$
+\end{center}
+Per lo \textit{span} invece:
+\begin{center}
+	$S(n) = S(\frac{3n}{4}) + O(\log{n}) = O(\log^{2}n)$
+\end{center}
+Nel caso sequenziale: $T(n) = 2T(\frac{n}{2}) + \Theta(n) = O(n\times \log{n})$. \\
+Quindi, rispetto al sequenziale, il parallelo mantiene lo stesso \textit{work}, ma lo \textit{span} è pari a: $T(n) = 1T(\frac{n}{2}) + \Theta(n) = \Theta(n)$. \\
+Utilizzando il parallel merge:
+\begin{itemize}
+	\item \textit{work}: $T(n) = 2T(\frac{n}{2}) + \Theta(n) = \Theta(n\times \log{n})$;
+	\item \textit{span}: $T(n) = 1T(\frac{n}{2}) + \Theta(\log^{2}{n}) = \Theta(\log^{3}{n})$;
+	\item \textit{parallelismo}: $O(\frac{n}{\log^{2}{n}})$.
+\end{itemize}
+Non è ottimale come il \textit{quicksort}, ma garantisce quantomeno un \textit{worst-case}.

@@ -41,3 +41,151 @@ Altro problema molto pratico: la classe builtin Java \textit{java.lang.Thread} n
 \subsubsection{Divide et Impera}
 Per risolvere questo tipo di problema (nella gestione e ricerca degli innumerevoli thread in coda, per l'acquisizione di informazioni relative alla loro esecuzione per esempio), si ricorre spesso a logiche algoritmiche diverse, come nel caso di \textit{divide et impera}. \\
 L'idea è quella di generare ricorsivamente, attraverso ciascun thread, nuovi thread. Così che ognuno di essi ne abbia in gestione altri, ma riducendo la mole di ciascuno e il costo di ricerca delle informazioni.
+
+\section{Libreria ForkJoin}
+Dato il pesante costo dei thread builtin Java, che portano un pesantissimo overhead (senza considerare la comune necessità di inizializzare migliaia di thread in contemporanea), il corso suggerisce di migrare su un framework alternativo: \textit{ForkJoin}. \\
+Scritto secondo la tecnica presentata come \textit{Fork/Join}, appunto, e seguendo l'idea algoritmica del \textit{divide-et-impera}, fa uso delle seguenti classi:
+\begin{itemize}
+	\item \textit{ForkJoinPool}: contenitore che esegue tutti i task \textit{fork-join} (per un'implementazione corretta, instanziarne sempre uno solo);
+	\item \textit{RecursiveTask<V>}: utilizzato come thread da eseguire - attraverso la sottoclasse - e fa in modo di ritornare un risultato;
+	\item \textit{RecursiveAction}: come un \textit{RecursiveTask}, ma non ritorna alcun risultato;
+	\item \textit{ForkJoinTask<V>}: è la superclasse del \textit{RecursiveTask<V>} e della \textit{RecursiveAction}, implementa i metodi \textit{fork()} e \textit{join()}. Non verrà mai utilzzato direttamente, ma contiene \textit{Javadoc} molto utili e completi.
+\end{itemize}
+
+Per utilizzare il framework, occorre innanzitutto creare un \textit{ForkJoinPool}, utilizzato dall'intero programma (ha quindi senso inserirlo in un campo statico); una volta fatto, si lancia l'\textit{invoke()} del pool sulla \textit{RecursiveAction} (si possono comunque utilizzare i metodi \textit{fork()}, \textit{compute()}, \textit{join()}, sull'istanza della action). \\
+Per esempio:
+\begin{lstlisting}
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.RecursiveAction;
+
+class ExampleThread {
+
+	static final ForkJoinPool fjPool = new ForkJoinPool();
+
+	static int sum(int[] array) {
+		SumArray t = new SumArray(array, 0, array.length);
+		fjPool.invoke(t);
+		return t.ans;
+	}
+}
+\end{lstlisting}
+
+Qualora invece fosse necessario che il thread ritornasse un risultato, occorre utilizzare il \textit{RecursiveTask}, che presenta alcune differenze nella gestione rispetto al vecchio \textit{Thread} builtin:
+\begin{itemize}
+	\item Non estende \textbf{Thread}, ma \textbf{RecursiveTask<T>};
+	\item Non fa override di \textbf{run()}, ma di \textbf{compute()};
+	\item Non usa un campo \textbf{ans}, ma ritorna un'istanza di \textbf{V} dal \textbf{compute()};
+	\item Non chiama un metodo \textbf{start()}, ma \textbf{fork()};
+	\textit{}Si chiama il metodo \textbf{join()} per ottenere il risultato;
+	\textit{}Non si chiama il metodo \textbf{run()}, ma si chiama un \textbf{pool} che lo esegua;
+	\textit{}Non si chiama, in alternativa, il metodo \textbf{run()}, ma \textbf{compute()}.
+\end{itemize}
+
+Quindi, l'implementazione della classe \textit{SumArray} sarà la seguente:
+\begin{lstlisting}
+class SumArray extends RecursiveTask<Integer> {
+
+	int lo; int hi; int[] arr;
+
+	SumArray(int[] arr, int lo, int hi) { ... }
+	
+	protected Integer compute() {
+		if (hi - lo < SEQUENTIAL_CUTOFF) {
+			int ans = 0;
+			for (int i=lo; i<hi; i++)
+				ans += arr[i];
+			return ans;
+		} else {
+			SumArray left = new SumArray(arr, lo, (hi+lo)/2);
+			SumArray right = new SumArray(arr, (hi+lo)/2, hi);
+			left.fork();
+			int rightAns = right.compute();
+			int leftAns = left.join();
+			return leftAns + rightAns;
+		}
+	}
+}
+\end{lstlisting}
+
+\paragraph{Note importanti}
+\begin{enumerate}
+	\item \textbf{Sequential threshold}: la libreria suggerisce di fare approssimatamente tra le 100 e le 5000 operazioni di base in ogni sezione del vostro algoritmo;
+	\item La libreria necessita di tempo per \textit{scaldarsi}, facendo utilizzo di particolari \textit{cache} che portano ad un miglioramento nella performance dei task lunghi.
+\end{enumerate}
+
+\subsection{Riduzioni}
+Possiamo notare che la somma degli elementi di un array, attraverso l'idea del \textit{divide-et-impera}, ha portato ad un miglioramento, passando da un costo di $O(n)$ sequenziale a quello di $O(\log{n})$ parallelizzato. \\
+Esistono però innumerevoli problemi come questo:
+\begin{itemize}
+	\item Massimo o minimo elemento;
+	\item Esiste un elemento che soddisfa un proprietà;
+	\item L'elemento più a sinistra che soddisfi una proprieta;
+	\item \ldots
+\end{itemize}
+Le computazioni di questo tipo prendono il nome di \textit{Riduzioni} (o \textit{reduces}), ovvero, che producono una risposta singola da un una collezione, tramite un operatore associativo (esempio: massimo, conteggio, più a destra, più a sinistra, somma, prodotto, \ldots; non esempio: mediana, sottrazione, \ldots). In ogni caso, il risultato non deve necessariamente essere un numero, ma anche un \textit{array}; d'altra parte, alcune informazioni sono inerentemente sequenziali, come per esempio l'elaborazione dell'elemento $arr[i]$, che dipende interamente dall'elaborazione precedente $arr[i-1]$. \\
+L'utilizzo delle \textit{Map} cerca di risolvere questo problema, perchè opera su una collezione indipendentemente, per creare una collezione della stessa dimensione. \\
+Problema \textit{vector addition} con \textit{ForkJoin}:
+\begin{lstlisting}
+class VecAdd extends RecursiveAction {
+
+	int lo; int hi; int[] res; int[] arr1; int[] arr2;
+
+	VecAdd(int lo, int hi, int[] res, int[] arr1, int[] arr2) { ... }
+
+	protected void compute() {
+		if (hi - lo < SEQUENTIAL_CUTOFF) {
+			for (int i=lo; i<hi; i++)
+				res[i]  = arr1[i] + arr2[i];
+		} else {
+			int mid = (hi+lo)/2;
+			VecAdd left = new VecAdd(lo, mid, res, arr1, arr2);
+			VecAdd right = new VecAdd(mid, hi, res, arr1, arr2);
+			left.fork();
+			right.compute();
+			left.join();
+		}
+	}
+}
+class Main {
+
+	static final ForkJoinPool fjPool = new ForkJoinPool();
+
+	int[] add(int[] arr1, int[] arr2) {
+		assert (arr1.length == arr2.length);
+
+		int[] ans = new int[arr.length];
+		fjPool.invoke(new VecAdd(0, arr.length, ans, arr1, arr2));
+		return ans;
+	}
+}
+\end{lstlisting}
+
+Le mappe e le riduzioni sono i cavalli di battaglia della programmazione parallelizzata, e rappresentano i più importanti pattern, per questo è necessario capire quando un algoritmo può essere scritto in termini di mappe e riduzioni.
+
+\paragraph{Google e MapReduce}
+\textit{Google} stessa ha lavorato pesantemente su questo ordine di problemi, realizzando una classe \textit{MapReduce} (o la sua versione opensource, \textit{Hadoop}). L'idea è quella di realizzare mappe/riduzioni su grandi set di dati utilizzando alcune macchine ausiliarie, separando il lavoro ricorsivo di \textit{divide-et-impera} dalla computazione effettiva.
+
+\subsubsection{Alberi bilanciati}
+Le mappe e le riduzioni lavorano molto bene su alberi bilanciati, infatti, per esempio, l'elemento minimo in un albero binario \textit{non ordinato}, ma \textit{bilanciato}, rimane $O(\log{n})$, dati sufficienti processori. \\
+Come calcolare il \textit{sequential cutoff}? Basta salvarsi il numero di discendenti per ciascun nodo, facilmente manutenibile, oppure approssimarlo attraverso, per esempio, l'alteza dell'albero \textit{AVL}. \\
+Inoltre, il tipo di struttura dati influisce pesantemente sulla computazione parallelizzata: per esempio, per il parallelismo, gli alberi bilanciati generalmente lavorano meglio delle liste, riuscendo ad ottenere risultati con tempistiche esponenzialmente più brevi ($O(\log{n}$ contro $O(n)$).
+
+\subsection{Work e Span}
+L'obiettivo principale con il framework \textit{ForkJoin} è  quello di ottenere una performance a runtime asintoticamente ottimale, rispetto al numero di processori disponibile. \\
+Per fare questa analisi, occore definire il \textit{work} e lo \textit{span}. Dato $T_{P}$ il tempo di esecuzione con $P$ processori disponibili:
+\begin{itemize}
+	\item \textit{work}: tempo di esecuzione con $T_{1}$;
+	\item \textit{span}: tempo di esecuzione con $T_{\infty}$.
+\end{itemize}
+
+Tendenzialmente, l'esecuzione di un programma utilizzando al strategia \textit{fork/join} può essere vista come un \textit{DAG}, dove i nodi sono le porzioni di codice da eseguire e gli archi, invece, le dipendenze di precedenza tra un nodo e l'altro. Quindi, un \textit{fork()} \textit{chiude} un nodo e crea due archi uscenti (quindi genera un thread e continua il thread corrente); un \textit{join()} \textit{chiude} un nodo e crea un nodo con due archi entranti (il nodo appena \textit{chiuso} e l'ultimo nodo del thread \textit{joinato}). \\
+Ancora, se $T_{P}$ è stato definito come il tempo di esecuzione con $P$ processori disponibili, il \textit{work} è la somma del tempo di esecuzione di tutti i nodi del \textit{DAG}, mentre lo \textit{span} è la somma del tempo di esecuzione di tutti i nodi del percorso più lungo all'interno del \textit{DAG}. \\
+Lo \textit{speedup} su $P$ processori è quindi definito come $\frac{T_{1}}{T_{P}}$, dove lo speedup $P$ con $P$ processori è lo speedup lineare perfetto. Il \textit{parallelismo} è il massimo speedup possibile $\frac{T_{1}}{T_{\infty}}$. \\
+Quindi, conoscendo $T_{1}$ e $T_{\infty}$ e volendo conoscere $T_{P}$ per un dato $P$ (ad esempio, $P=4$), ignorando il sistema di caching di \textit{ForkJoin}, $T_{P} = \Omega(\frac{T_{1}}{P})$ e $T_{P} = \Omega(T_{\infty})$. Infatti, l'esecuzione asintoticamente ottimale sarebbe: $T_{P} = \Theta(\frac{T_{1}}{P + T_{\infty}})$. \\
+In sintesi, il framework \textit{ForkJoin} è capace di dare una garanzia sul tempo di esecuzione previsto asintoticamente ottimale. \\ \\
+
+\paragraph{Raccomandazioni}
+\begin{enumerate}
+	\item tutti i thread che vengono creati devono fare orientativamente la stessa quantità di lavoro;
+	\item tutti i thread devono fare un piccolo task.
+\end{enumerate}
