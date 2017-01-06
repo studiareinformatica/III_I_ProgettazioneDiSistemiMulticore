@@ -132,3 +132,97 @@ Il \textit{synchronized} di \textit{Java} non supporta il lock \textit{lettore/s
 	\item non hanno stessa interfaccia: per questo i metodi \textit{readLock()} e \textit{writeLock()} ritornano oggetti che hanno a loro volta i metodi \textit{lock()} e \textit{unlock()};
 	\item non da priorità allo scrittore.
 \end{itemize}
+
+\section{Variabili condizione}
+Si parte da un esempio canonico: la necessità di dover condividere lavoro tra thread, attraverso un coda di dimensione fissa, in cui i (thread) produttore accodano il risultato del loro lavoro e i (thread) consumatori lo prelevano per elaborarlo. \\
+\newpage
+Per fare in modo che questa logica funzioni, occorre \textit{sincronizzazione} nell'accesso alla coda:
+\begin{lstlisting}
+class Buffer<E> {
+
+	E[] array = (E[]) new Object[SIZE];
+	
+	synchronized void enqueue(E elt) {
+		if (isFull()) {
+			...
+		} else {
+			/* add to array and adjust back */
+		}
+	}
+	synchronized E dequeue(E elt) {
+		if (isEmpty()) {
+			...
+		} else {
+			/* take from array and adjust front */
+		}
+	}
+
+}
+\end{lstlisting}
+Ma nei casi di \textit{isFull()} e \textit{isEmpty()}? La cosa migliore sarebbe lasciare in attesa il richiedente e notificarlo quando la risorsa richiesta è disponibile, senza lanciare eccezioni ma soprattutto, senza lasciare che la risorsa rimanga bloccata nel frattempo. \\
+Per questa ragione vengono utilizzate le \textit{variabili condizione}, per notificare thread in attesa quando la condizione che causa la loro attesa è variata. Quindi:
+\begin{lstlisting}
+synchronized void enqueue(E elt) {
+	if (isFull()) {
+		this.wait(); // releases lock and wait
+	}
+	/* add to array and adjust back */
+	if (!isFull()) {
+		this.notify(); // wake somebody up
+	}
+}
+synchronized E dequeue(E elt) {
+	if (isEmpty()) {
+		this.wait(); // releases lock and wait
+	}
+	/* take from array and adjust front */
+	if (!isEmpty()) {
+		this.notify(); // wake somebody up
+	}
+}
+\end{lstlisting}
+
+\paragraph{Java}
+Per \textit{Java} ogni oggetto è una \textit{variabile condizione} (e un \textit{lock}). Altri linguaggi spesso usano diversificare i due concetti. \\\\
+
+Nell'ultimo esempio, quindi, vengono introdotti \textit{wait()} e \textit{notify()}:
+\begin{itemize}
+	\item \textit{wait()}: registra il thread richiedente come interessato e poi \textit{atomicamente} rilascia il \textit{lock} sulla risorsa e blocca il thread; quando l'esecuzione riprenderà, la prima operazione sarà quella di riacquisire il \textit{lock};
+	\item \textit{notify()}: prende uno dei thread in attesa e lo sveglia, se ce ne sono.
+\end{itemize}
+
+\paragraph{Problema \#1}
+Nel tempo che intercorre tra la riattivazione di un thread e la sua riacquisizione del \textit{lock}, potrebbe essere che la \textit{variabile condizione} diventi falsa ancora. Per ovviare a questo problema, occorre ricontrollare sempre la condizione dopo aver ottenuto il \textit{lock}:
+\begin{lstlisting}
+synchronized void enqueue(E elt) {
+	while (isFull()) {
+		this.wait(); // releases lock and wait
+	}
+	...
+}
+synchronized E dequeue(E elt) {
+	while (isEmpty()) {
+		this.wait(); // releases lock and wait
+	}
+	...
+}
+\end{lstlisting}
+
+\paragraph{Problema \#2}
+Anche se ci sono più threads in attesa, ne viene svegliato sempre solo uno. La soluzione al problema è molto semplice: avvertire sempre tutti i thread, attraverso \textit{notifyAll()}:
+\begin{lstlisting}
+synchronized void enqueue(E elt) {
+	...
+	if (!isFull()) {
+		this.notifyAll(); // wake everybody up
+	}
+}
+synchronized E dequeue(E elt) {
+	...
+	if (!isEmpty()) {
+		this.notifyAll(); // wake everybody up
+	}
+}
+\end{lstlisting}
+Altro approccio potrebbe essere chiamare, senza condizione \textit{if}, sempre il \textit{notifyAll()} (o \textit{notify()}), ma questo sarebbe utile soltanto se l'\textit{enqueuer} e il \textit{dequeuer} aspettassero su \textit{variabili condizione} diverse. \\
+In ogni caso, \textit{Java} non sembra supportarlo, ma la classe \textit{ReentrantLock} di \textit{java.util.concurrent.locks} contiene un metodo \textit{newCondition()} che ritorna un nuovo oggetto \textit{Condition} associato al \textit{lock}.
