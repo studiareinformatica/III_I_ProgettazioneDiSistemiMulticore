@@ -1,2 +1,117 @@
-\section{Introduzione}
-introduzione
+\section{Memory}
+In \textit{OpenCL}, esistono due tipi di \textit{Memory object} (per accessi ad una regione della memoria globale):
+\begin{enumerate}
+	\item oggetto \textit{Buffer}: un semplice array, completamente esposto tra \textit{kernel} ed accessibile attraverso puntatori;
+	\item oggetto \textit{Image}: definisce una regione della memoria bi(o tri)-dimensionale, con strutture dati accessibili solo con funzioni \textit{read()} e \textit{write()}, molto utili per interfacciarsi con API grafiche come \textit{OpenGL}.
+\end{enumerate}
+\subsection{Buffer}
+I \textit{buffer} si dichiarano nell'host con tipo \textit{cl\_mem}.
+\paragraph{Esempio}
+Per creare un \textit{buffer} \textit{d\_X}, copiare i \textit{byte} da \textit{h\_X} a \textit{d\_X} e copiarlo in memoria:
+\begin{lstlisting}
+cl_mem d_X = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, sizeof(float)*count, h_X, NULL);
+\end{lstlisting}
+Per evitare confusione nel capire se una variabile \textit{host} è un semplice array \textit{C} o un \textit{buffer} \textit{OpenCL} si usa la convenzione del prefisso \textit{\textbf{h}\_} per indicare array \textit{C} regolari dell'\textbf{h}ost e di quello \textit{\textbf{d}\_} per indicare buffer del \textbf{d}evice. \\
+Esistono altre \textit{flag} per il tipo di memoria, come \textit{CL\_MEM\_WRITE\_ONLY} e \textit{CL\_MEM\_READ\_WRITE}. \\
+Per copiare il buffer sulla memoria host in \textit{h\_Y} (\textit{CL\_TRUE} è bloccante, \textit{CL\_FALSE} non è bloccante):
+\begin{lstlisting}
+clEnqueueReadBuffer(queue, d_Y, CL_TRUE, 0, sizeof(float)*count, h_Y, 0, NULL, NULL);
+\end{lstlisting}
+
+\section{Program}
+Gli oggetti \textit{program} contengono un \textit{context}, i sorgenti (o il binario) del \textit{kernel} e la lista dei \textit{target devices} e le opzioni di build. Le API \textit{C} craeno un oggetto program con: \textit{clCreateProgramWithSource()} e/o \textit{clCreateProgramWithBinary()}. \\\\
+\textit{OpenCL} usa la compilazione a runtime, perché in generale non può sapere i dettagli del \textit{target device} quando compili il programma.
+\subsection{Creazione e build del programma}
+Il codice sorgente del \textit{kernel} può essere definito sia come una stringa sia come da leggere da file. Quindi il \textit{cl\_program} incapsula codice sorgente e la sua ultima build riuscita. Per compilare il programma:
+\begin{lstlisting}
+cl_program program = clCreateProgramWithSource(context, 1, (const char**) &KernelSource, NULL, &err);
+\end{lstlisting}
+La compilazione del programma crea una libreria dinamica da cui possono essere prelevati \textit{kernel} specifici:
+\begin{lstlisting}
+err = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
+// check errors
+if (err != CL_SUCCESS) {
+	size_t len;
+	char buffer[2048];
+	clGetProgramBuildInfo(program, device_id, CL_PROGRAM_BUILD_LOG, sizeof(buffer), buffer, &len);
+	printf("%s\n", buffer);
+}
+\end{lstlisting}
+
+\section{Kernel}
+Per creare un oggetto \textit{kernel}:
+\begin{lstlisting}
+kernel = clCreateKernel(program, "square", &err);
+// set kernel parameters
+err  = clSetKernelArg(kernel, 0, sizeof(cl_mem), &d_X);
+err |= clSetKernelArg(kernel, 1, sizeof(unsigned int), &count);
+\end{lstlisting}
+Dopodiché, per accodare comandi, occorre scrivere dei \textit{buffer} dall'host alla memoria globale:
+\begin{lstlisting}
+err = clEnqueueWriteBuffer(commands, d_X, CL_FALSE, 0, sizeof(float)*count, h_X, 0, NULL, NULL);
+\end{lstlisting}
+Poi, per accodare il \textit{kernel} per l'esecuzione:
+\begin{lstlisting}
+err = clEnqueueTask(commands, kernel, 0, NULL, NULL);
+// or
+err = clEnqueueNDRangeKernel(commands, kernel, 1, NULL, &global, &local, 0, NULL, NULL);
+\end{lstlisting}
+Per leggere il risultato dei comandi:
+\begin{lstlisting}
+err = clEnqueueReadBuffer(commands, d_X, CL_TRUE, sizeof(float)*count, h_X, 0, NULL, NULL);
+\end{lstlisting}
+
+\section{Panoramica Host}
+In generale il codice \textit{host} si suddivide delle seguenti fasi:
+\begin{enumerate}
+	\item definizione di piattaforma e code;
+	\item definizione di oggetti in memoria;
+	\item creazione \textit{programma};
+	\item compilazione \textit{program};
+	\item creazione e configurazione \textit{kernel};
+	\item esecuzione \textit{kernel};
+	\item lettura dei risultati.
+\end{enumerate}
+
+\section{Parallelismo in OpenCL}
+L'idea di fondo è l'esecuzione della funzione \textit{\_\_kernel} per ogni punto del dominio del problema, invece di utilizzare i \textit{loop}; si parallelizza il seguente codice con \textit{loop} tradizionale:
+\begin{lstlisting}
+void mul(const int n, const float *a, const float *b, float *c) {
+	int i;
+	for (i = 0; i < n; i++) {
+		c[i] = a[i] * b[i];
+	}
+}
+\end{lstlisting}
+Con il seguente:
+\begin{lstlisting}
+// tutte le iterazioni del loop vengono chiamate simultaneamente ed eseguite in parallelo
+__kernel void mul(__global const float *a, __global const float *b, __global float *c) {
+	int id = get_global_id(0);
+	c[id] = a[id] * b[id];
+}
+\end{lstlisting}
+
+\subsection{Dimensionalità del problema}
+Occorre definire la dimensionalità del problema in relazione al priblema stesso. \\
+Quando viene eseguito il \textit{kernel} vengono specificate al massimo 3 dimensioni, per ciascuna delle quali viene specificata a sua volta la grandezza totale del problema, chiamata la \textit{global size}. \\
+Ogni singola istanza del \textit{kernel} nell'\textit{NDRange} è un \textit{work-item} e ognuno di essi esegue lo stesso \textit{kernel} su dati diversi. Ogni \textit{work-item} hanno \textit{global ID} unico. \\
+Ogni \textit{work-item} fa parte di un \textit{work-group}, con cui condivide la memoria locale e con cui può sincronizzarsi. Si può specificare il numero di \textit{work-item} in un \textit{work-group}, e questo numero prende il nome di \textit{local size} (locale al \textit{work-group}) (in alternativa, lo sceglie la \textit{runtime} \textit{OpenCL}, non in maniera ottimale). \\
+Ogni \textit{work-group} ha un \textit{work-group ID} univoco e i suoi \textit{work-items} hanno anche loro un \textit{ID} univoco locale al \textit{work-group}.
+
+\subsection{OpenCL C}
+L'\textit{OpenCL C} è derivato dall'\textit{ISO C99}, e presenta alcune restrizioni: non ha ricorsioni, né puntatori a funzioni, \ldots. I tipi builtin sono:
+\begin{itemize}
+	\item tipi \textit{scalari}: \textit{char}, \textit{uchar}, \textit{short}, \textit{ushort}, \textit{int}, \textit{uint}, \textit{long}, \textit{ulong}, \textit{float}, \textit{bool}, \textit{intptr\_t}, \textit{ptrdiff\_t}, \textit{size\_t}, \textit{uintptr\_t}, \textit{void}, \ldots;
+	\item tipi \textit{immagine}: \textit{image2d\_t}, \textit{image3d\_t} e \textit{sampler\_t};
+	\item tipi \textit{vettore} e \textit{puntatori};
+	\item funzioni di conversione \textit{data-type}.
+\end{itemize}
+Esistono poi diversi qualificatori:
+\begin{itemize}
+	\item qualificatori di funzione: \textit{\_\_kernel}, che dichiara una funzione come un \textit{kernel};
+	\item qualificatori di indirizzi: \textit{\_\_global}, \textit{\_\_local}, \textit{\_\_constant}, \textit{\_\_private}, tutti necessari se argomenti di una funzione \textit{\_\_kernel}.
+\end{itemize}
+Ancora, alcune funzioni per \textit{work-items}: \textit{get\_work\_dim()}, \textit{get\_global\_id()}, \textit{get\_local\_id()}, \textit{get\_group\_id()}. \\
+Per la sincronizzazione vengono invece utilizzate le \textit{barriere} (tutti i \textit{work-items} in un \textit{work-group} devono eseguire la funzione \textit{barrier()} prima che ogni \textit{work-item} possa proseguire) e le \textit{memory fences} (che garantiscono ordinamento nelle operazioni in memoria). \\
+Infine, non sono permessi \textit{puntatori a funzione}, i \textit{puntatori a puntatori} sono permessi all'interno di un \textit{kernel}, ma non come argomento allo stesso, i campi \textit{bit} non sono supportati, così come gli array e le strutture a lunghezza variabile, così come la riscorsione, e i tipi \textit{double} sono opzionali in \textit{OpenCL 1.1}, ma in ogni caso è una \textit{key word} riservata.
