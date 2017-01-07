@@ -6,7 +6,10 @@ La prima legge di Moore è tratta da un'osservazione empirica di Gordon Moore, c
 Nel 1975 questa previsione si rivelò corretta e prima della fine del decennio i tempi si allungarono a due anni, periodo che rimarrà valido per tutti gli anni ottanta. La legge, che verrà estesa per tutti gli anni novanta e resterà valida fino ai nostri giorni, viene riformulata alla fine degli anni ottanta ed elaborata nella sua forma definitiva, ovvero che il numero di transistori nei processori raddoppia ogni 18 mesi. Questa legge è diventata il metro e l'obiettivo di tutte le aziende che operano nel settore, come Intel e AMD. \\\\
 
 Nel 2001, ci si accorse che l'aumento della potenza dei processori portava ad un drastico aumento del consumo energetico e della dissipazione del calore.
-Per questa ragione, dal 2005, si iniziò ad aumentare il numero di \textit{core} del processore, invece del \textit{clock rate}. \\
+Per questa ragione, dal 2005, si iniziò ad aumentare il numero di \textit{core} del processore, invece del \textit{clock rate}.
+
+\newpage	
+
 Da questo punto nasce la definizione di \textit{programmazione sequenziale} e di \textit{programmazione parallela}, che influiscono in diversi ambiti:
 \begin{itemize}
 	\item \textit{Programmazione}: dividere il lavoro in diversi \textit{thread} di esecuzione, in sincronizzazione l'uno con l'altro;
@@ -67,8 +70,8 @@ Quindi, aumentando il \textit{workload} insieme con il numero di processori, si 
 $S(n) \leq n - \alpha (n-1)$, e quindi se la frazione sequenziale $\alpha$ è piccola, si può arrivare ad ottenere uno \textit{speedup} vicino ad $n$. \\
 Inoltre, nasce la definizione di \textit{forte} e \textit{debole scalabilità}:
 \begin{itemize}
-	\item \textit{scalabilità forte} (\textit{strong scaling}): vogliamo sapere quanto rapidamente possiamo completare l'analisi di un particolare insieme di dati incrementando il numero di processori;
-	\item \textit{scalabilità debole} (\textit{weak scaling}): vogliamo sapere se possiamo analizzare più dati approssimativamente nello stesso tempo, incrementando il numero di processori.
+	\item \textit{scalabilità forte} (\textit{strong scaling}): vogliamo sapere quanto rapidamente possiamo completare l'analisi di un particolare insieme di dati incrementando il numero di processori (derivata dalla legge di \textbf{Amdahl});
+	\item \textit{scalabilità debole} (\textit{weak scaling}): vogliamo sapere se possiamo analizzare più dati approssimativamente nello stesso tempo, incrementando il numero di processori (derivata dalla legge di \textit{Gustafson}).
 \end{itemize}
 
 \section{Sistemi di Calcolo parallelo}
@@ -87,10 +90,10 @@ Dove:
 	\item \textbf{SISD}: nessuna parallelizzazione, né nei \textit{mainframes} (\textit{data stream}), né nelle istruzioni;
 	\item \textbf{SIMD}: parallelizzazione dei dati (\textit{stream processors}, \textit{GPUs}). Una singola \textit{control unit} spedisce la stessa istruzione a più processori che lavorano su dati diversi;
 	\item \textbf{MISD}: istruzioni multiple operanti sugli stessi \textit{data stream} (inusuale);
-	\item \textbf{MIMD}: istruzioni multiple operanti indipendentemente su \textit{data stream} multipli (computer più recenti). Ogni processore ha la sua \textit{control unit} e può eseguire dierse istruzioni su dati differenti.
+	\item \textbf{MIMD}: istruzioni multiple operanti indipendentemente su \textit{data stream} multipli (computer più recenti). Ogni processore ha la sua \textit{control unit} e può eseguire diverse istruzioni su dati differenti.
 \end{itemize}
 
-Esistono due forme primarie di scambio dati tra task paralleli:
+Esistono due forme primarie di scambio dati tra task paralleli, seguite da altre ibride più evolute:
 \begin{enumerate}
 	\item accedendo a uno spazio dati condiviso: \textit{memoria condivisa} (\textit{multi-processori}). Piattaforme:
 	\begin{enumerate}
@@ -99,7 +102,7 @@ Esistono due forme primarie di scambio dati tra task paralleli:
 	\end{enumerate}
 	\item scambiando messaggi in una rete: \textit{memoria distribuita} (\textit{multi-computers});
 	\item utilizzando sistemi ibridi (\textit{hybrid systems}), sia con memoria condivisa che distribuita: ogni nodo ha una sua memoria ed $n$ processori. Quando necessita di più di $n$ processori, utilizza lo scambio di messaggi in rete;
-	\item utilizzando sistemi multicore (\textit{multicore systems}), estendendo i sistemi ibridi e prevendendo l'utilizzo di \textit{memoria cache}, \textit{accesso alla memoria principale} e di una connessione \textit{node-to-node} attraverso la rete;
+	\item utilizzando sistemi multicore (\textit{multicore systems}), estendendo i sistemi ibridi e utilizzando \textit{memoria cache}, \textit{accesso alla memoria principale} e di una connessione \textit{node-to-node} attraverso la rete;
 	\item utilizzando sistemi accellerati (\textit{accelerated systems}), dove le computazioni vengono eseguite sia dalla CPU che dagli \textit{acceleratori}. Esistono diversi tipi di acceleratori:
 	\begin{itemize}
 		\item \textbf{GPGPU} (\textit{general purpose graphical processing unit}), fornisce grafica via hardware, utilizzando modelli, librerie e compilatori indipendenti come \textit{CUDA} e \textit{OpenCL};

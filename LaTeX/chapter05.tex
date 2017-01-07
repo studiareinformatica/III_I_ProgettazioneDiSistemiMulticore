@@ -19,8 +19,8 @@ clEnqueueReadBuffer(queue, d_Y, CL_TRUE, 0, sizeof(float)*count, h_Y, 0, NULL, N
 \end{lstlisting}
 
 \section{Program}
-Gli oggetti \textit{program} contengono un \textit{context}, i sorgenti (o il binario) del \textit{kernel} e la lista dei \textit{target devices} e le opzioni di build. Le API \textit{C} craeno un oggetto program con: \textit{clCreateProgramWithSource()} e/o \textit{clCreateProgramWithBinary()}. \\\\
-\textit{OpenCL} usa la compilazione a runtime, perché in generale non può sapere i dettagli del \textit{target device} quando compili il programma.
+Gli oggetti \textit{program} contengono un \textit{context}, i sorgenti (o il binario) del \textit{kernel} e la lista dei \textit{target devices} e le opzioni di build. Le API \textit{C} creano un oggetto program con: \textit{clCreateProgramWithSource()} e/o \textit{clCreateProgramWithBinary()}. \\\\
+\textit{OpenCL} usa la compilazione a runtime, perché in generale non può sapere i dettagli del \textit{target device} quando il programma viene compilato.
 \subsection{Creazione e build del programma}
 Il codice sorgente del \textit{kernel} può essere definito sia come una stringa sia come da leggere da file. Quindi il \textit{cl\_program} incapsula codice sorgente e la sua ultima build riuscita. Per compilare il programma:
 \begin{lstlisting}
@@ -74,7 +74,7 @@ In generale il codice \textit{host} si suddivide delle seguenti fasi:
 \end{enumerate}
 
 \section{Parallelismo in OpenCL}
-L'idea di fondo è l'esecuzione della funzione \textit{\_\_kernel} per ogni punto del dominio del problema, invece di utilizzare i \textit{loop}; si parallelizza il seguente codice con \textit{loop} tradizionale:
+L'idea di fondo è l'esecuzione della funzione \textit{\_\_kernel} per ogni punto del dominio del problema, invece di utilizzare i \textit{loop}. Quindi, il seguente codice con \textit{loop} tradizionale:
 \begin{lstlisting}
 void mul(const int n, const float *a, const float *b, float *c) {
 	int i;
@@ -83,7 +83,7 @@ void mul(const int n, const float *a, const float *b, float *c) {
 	}
 }
 \end{lstlisting}
-Con il seguente:
+si parallelizza come segue:
 \begin{lstlisting}
 // tutte le iterazioni del loop vengono chiamate simultaneamente ed eseguite in parallelo
 __kernel void mul(__global const float *a, __global const float *b, __global float *c) {
@@ -100,7 +100,8 @@ Ogni \textit{work-item} fa parte di un \textit{work-group}, con cui condivide la
 Ogni \textit{work-group} ha un \textit{work-group ID} univoco e i suoi \textit{work-items} hanno anche loro un \textit{ID} univoco locale al \textit{work-group}.
 
 \subsection{OpenCL C}
-L'\textit{OpenCL C} è derivato dall'\textit{ISO C99}, e presenta alcune restrizioni: non ha ricorsioni, né puntatori a funzioni, \ldots. I tipi builtin sono:
+L'\textit{OpenCL C} è derivato dall'\textit{ISO C99}, e presenta alcune restrizioni: non ha ricorsioni, né puntatori a funzioni, \ldots . \\
+I tipi builtin sono:
 \begin{itemize}
 	\item tipi \textit{scalari}: \textit{char}, \textit{uchar}, \textit{short}, \textit{ushort}, \textit{int}, \textit{uint}, \textit{long}, \textit{ulong}, \textit{float}, \textit{bool}, \textit{intptr\_t}, \textit{ptrdiff\_t}, \textit{size\_t}, \textit{uintptr\_t}, \textit{void}, \ldots;
 	\item tipi \textit{immagine}: \textit{image2d\_t}, \textit{image3d\_t} e \textit{sampler\_t};

@@ -13,8 +13,8 @@ Una soluzione di base sono i \textit{lock}, che seguono tre fasi fondamentali:
 	\item \textit{release}: porta il \textit{lock} di nuovo a \textit{not held}.
 \end{itemize}
 Quindi l'istanza \textit{lock} sarà posta ai margini della \textit{sezione critica} nel codice, prima chiamando l'\textit{acquire()} e dopo il \textit{release()}. \\
-In ogni caso, l'uso dei \textit{lock} non è granché comodo, perché prevede che si tenga sempre conto dello stato del \textit{lock}, casa scarsa performance e come lavora sui \textit{setters} e \textit{getters}? \\
-Una parziale soluzione potrebbe essere usare i \textit{re-entrant lock} (o \textit{recursive lock}), che detiene sia il thread che lo sta bloccando e un conteggio. L'\textit{acquire()} ha successo se e solo se il thread che lo vuole bloccare è lo stesso che lo sta richiedendo, in questo caso viene incrementato il conteggio. Nel \textit{release()}, se il conteggio è $> 0$, il conteggio viene decrementato, e una volta a $0$, lo stato del \textit{lock} viene posto a \textit{not held}.
+In ogni caso, l'uso dei \textit{lock} non è granché comodo, perché prevede che si tenga sempre conto dello stato del \textit{lock}, causa scarsa performance e occorre sapre come gestire coerentemente i \textit{setters} e \textit{getters}. \\
+Una parziale soluzione potrebbe essere usare il \textit{re-entrant lock} (o \textit{recursive lock}), che detiene sia il thread che lo sta bloccando e un contatore. L'\textit{acquire()} ha successo se e solo se il thread che lo vuole bloccare è lo stesso che lo sta richiedendo, in questo caso viene incrementato il contatore. Nel \textit{release()}, se il conteggio è $> 0$, il contatore viene decrementato, e una volta a $0$, lo stato del \textit{lock} viene posto a \textit{not held}.
 
 \subsection{Java}
 \textit{Java} supporta i re-entrant locks in maniera primitiva, tramite lo statement builtin \textit{synchronized}, che valuta l'espressione in input (perché ogni oggetto in \textit{Java}, ad eccezione dei primitivi, è un \textit{lock}), acquisisce il \textit{lock}, entrando nella parentesi graffa \textit{"\{"}, bloccandolo se necessario, e lo rilascia uscendo dalla parentesi graffa \textit{"\}"}.
@@ -64,7 +64,7 @@ class BankAccount {
 I \textit{lock} sono privati, e in questo modo prevengono il fatto che il codice in altre classi possa eseguire operazioni sensibili. \\
 
 Una \textit{race condition} si verifica quando il risultato computazionale dipende dallo scheduling, e quindi due thread si sovrappongono, e rappresenta un bug esistente solo a causa della concorrenza.
-Due tipi di \textit{race condition} diversi sono i \textit{data races} e i \textit{bad interleavings}: la differenza sostanziale sta nel fatto che un \textit{data race} si verifica quando si presentano due accessi \textit{read/write} o \textit{write/write} alla stessa locazione di memoria simultaneamente. Dl'altra parte, una \textit{bad interleaving}, invece, è causata da l'esposizione in sezioni critiche di dati in uno stato intermedio inconsistente, nonostanza di \textit{data race}. \\
+Due tipi di \textit{race condition} diversi sono i \textit{data races} e i \textit{bad interleavings}: la differenza sostanziale sta nel fatto che un \textit{data race} si verifica quando si presentano due accessi \textit{read/write} o \textit{write/write} alla stessa locazione di memoria simultaneamente. D'altra parte, una \textit{bad interleaving}, invece, è causata da l'esposizione in sezioni critiche di dati in uno stato intermedio inconsistente, nonostante la presenza di \textit{data race}. \\
 E' quindi responsabilità del programmatore evitare che si verifichino \textit{data races}. \\
 
 \subsubsection{Variabili volatili}
@@ -98,7 +98,7 @@ Una volta appurato che rispettiamo adeguatamente le prime due regole, occorre sa
 	\end{itemize}
 	\item evitare di fare grandi computazioni o attività I/O nelle sezioni critiche, ma fare in ogni caso attenzione a dare - in questo modo - accessi alternati in lettura scrittura di tipo \textit{A-B-A};
 	\item pensare sempre in termini di quali operazioni necessitano di essere atomiche, e formare le sezioni critiche limitatamente a quelle operazioni;
-	\item utilizzare librerie builtin ogni volta che vengono in tuo aiuto.
+	\item utilizzare librerie builtin ogni volta che vengono in aiuto.
 \end{enumerate}
 
 \section{Deadlocks}
@@ -107,7 +107,7 @@ Una \textit{deadlock} si presenta quando ci sono $T_{1}, \ldots, T_{n}$ thread t
 	\item per ciascuna $i = 1, \ldots, n-1$, $T_{i}$ è in attesa di una risorsa bloccata da $T_{i+1}$;
 	\item $T_{n}$ è in attesa di una risorsa bloccata da $T_{1}$.
 \end{itemize}
-In altre parole, si tratta di un ciclo di attese; pertanto, evitare in programmazione di andarci incontro, significa evitare che si presenti mai un possibile ciclo.
+In altre parole, si tratta di un ciclo di attese; pertanto, evitare in programmazione di andarci incontro significa evitare che si presenti un possibile ciclo.
 Quindi, ancora, occorre cercare di rendere le sezioni critiche più piccole possibile, utilizzare più possibile una granularità \textit{coarsen} dei locks e fare in modo tale che ogni lock venga acquisito sempre nello stesso ordine.
 
 \section{Lock lettore/scrittore}
@@ -130,7 +130,7 @@ Quindi, nel problema \textit{lettore/scrittore}, tendenzialmente viene data la p
 Il \textit{synchronized} di \textit{Java} non supporta il lock \textit{lettore/scrittore}, ma esiste la libreria \textit{java.util.concurrent.locks.ReentrantReadWriteLock}:
 \begin{itemize}
 	\item non hanno stessa interfaccia: per questo i metodi \textit{readLock()} e \textit{writeLock()} ritornano oggetti che hanno a loro volta i metodi \textit{lock()} e \textit{unlock()};
-	\item non da priorità allo scrittore.
+	\item non d\`{a} priorità allo scrittore.
 \end{itemize}
 
 \section{Variabili condizione}
@@ -164,7 +164,7 @@ Per questa ragione vengono utilizzate le \textit{variabili condizione}, per noti
 \begin{lstlisting}
 synchronized void enqueue(E elt) {
 	if (isFull()) {
-		this.wait(); // releases lock and wait
+		this.wait(); // release lock and wait
 	}
 	/* add to array and adjust back */
 	if (!isFull()) {
@@ -173,7 +173,7 @@ synchronized void enqueue(E elt) {
 }
 synchronized E dequeue(E elt) {
 	if (isEmpty()) {
-		this.wait(); // releases lock and wait
+		this.wait(); // release lock and wait
 	}
 	/* take from array and adjust front */
 	if (!isEmpty()) {
@@ -196,13 +196,13 @@ Nel tempo che intercorre tra la riattivazione di un thread e la sua riacquisizio
 \begin{lstlisting}
 synchronized void enqueue(E elt) {
 	while (isFull()) {
-		this.wait(); // releases lock and wait
+		this.wait(); // release lock and wait
 	}
 	...
 }
 synchronized E dequeue(E elt) {
 	while (isEmpty()) {
-		this.wait(); // releases lock and wait
+		this.wait(); // release lock and wait
 	}
 	...
 }

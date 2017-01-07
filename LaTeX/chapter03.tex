@@ -22,7 +22,10 @@ Non sembra essere un problema parallelizzabile perché:
 In ogni caso, un algoritmo differente può raggiungere \textit{span} $O(\log{n}))$.
 
 \subsection{Hillis \& Steele (1986)}
-L'idea è che all'inizio di ciascuna iterazione $i$, per $i \geq 0$; ogni elemento $A[x]$ dell'array contiene la somma di al massimo $2^{i}$ elementi precedenti, incluso $input[x]$). \\
+L'idea è che all'inizio di ciascuna iterazione $i$, per $i \geq 0$; ogni elemento $A[x]$ dell'array contiene la somma di al massimo $2^{i}$ elementi precedenti, incluso $input[x]$).
+
+\newpage
+
 \paragraph{Caso base}
 Sicuramente nel primo caso, per $i=0$, è verificato, in quanto vi sono elementi singoli.
 \paragraph{Passo induttivo}
@@ -128,7 +131,7 @@ L'algoritmo ha un \textit{work} $O(n)$ e \textit{span} $O(\log{n})$.
 	\end{tabular}
 \end{center}
 L'approccio più semplice è eseguire il terzo passo in parallelo, con i seguenti risultati: \textit{work} $\Theta(n\times \log{n})$ inalterato, \textit{span} $T(n) = \Theta(n) + 1T(\frac{n}{2}) = \Theta(n)$ alterato e quindi \textit{parallelismo} $O(\log{n})$. \\
-Avere uno speedup di $O(\log{n})$ con un numero infinito di processori non è un granché, si può fare molto meglio se parallelizzato anche la fase di partizionamento:
+Avere uno speedup di $O(\log{n})$ con un numero infinito di processori non è un granché, si può fare molto meglio se parallelizzata anche la fase di partizionamento:
 \begin{itemize}
 	\item si prenda come \textit{pivot} il mediano dell'albero;
 	\item inserire gli elementi minori del \textit{pivot} in un array ausiliario \textit{aux}, poi il \textit{pivot} e poi i maggiori;
@@ -149,12 +152,15 @@ Per ogni \textit{pack}, abbiamo un \textit{work} di $O(n)$ e \textit{span} $O(\l
 		\hline
 	\end{tabular}
 \end{center}
-Esattamente come nel \textit{quicksort}, eseguire i due ordinamenti in parallelo cambia lo \textit{span} in $T(n) = O(n) + 1T(\frac{n}{2}) = O(n)$. Ancora, il \textit{parallelismo} è di $O(\log{n})$. Perciò, per migliorare, occorre parallelizzare il \textit{merge} dei due risultati (non utilizzando il \textit{parallel-prefix, questa volta}). \\
+Esattamente come nel \textit{quicksort}, eseguire i due ordinamenti in parallelo cambia lo \textit{span} in $T(n) = O(n) + 1T(\frac{n}{2}) = O(n)$. Ancora, il \textit{parallelismo} è di $O(\log{n})$. Perciò, per migliorare, occorre parallelizzare il \textit{merge} dei due risultati (non utilizzando il \textit{parallel-prefix}, questa volta). \\
 Dovendo unire i due subarray, consideriamo che quello di grandezza maggiore dei due abbia $m$ elementi. Quindi, in parallelo:
 \begin{itemize}
 	\item unire i primi $m/2$ elementi della metà più grande con gli elementi appropriati della metà minore;
 	\item unire i secondi $m/2$ elementi della metà più grande con il resto della metà minore.
 \end{itemize}
+
+\newpage
+
 Questo approccio porta a un \textit{work} di:
 \begin{center}
 	$W(n) = W(\frac{3n}{4}) + W(\frac{n}{4}) + O(\log{n}) = O(n)$

@@ -39,17 +39,17 @@ Il problema fondamentale è che se necessitiamo di acquisire risultati su divers
 Altro problema molto pratico: la classe builtin Java \textit{java.lang.Thread} non è adatta alla gestione di piccoli tasks; così, un numero elevato di thread, porta ad un grande \textit{overhead}.
 
 \subsubsection{Divide et Impera}
-Per risolvere questo tipo di problema (nella gestione e ricerca degli innumerevoli thread in coda, per l'acquisizione di informazioni relative alla loro esecuzione per esempio), si ricorre spesso a logiche algoritmiche diverse, come nel caso di \textit{divide et impera}. \\
-L'idea è quella di generare ricorsivamente, attraverso ciascun thread, nuovi thread. Così che ognuno di essi ne abbia in gestione altri, ma riducendo la mole di ciascuno e il costo di ricerca delle informazioni.
+Per risolvere questo tipo di problema (nella gestione e ricerca degli innumerevoli thread in coda, per l'acquisizione di informazioni relative alla loro esecuzione, per esempio), si ricorre spesso a logiche algoritmiche diverse, come quella del \textit{divide et impera}. \\
+L'idea è quella di generare ricorsivamente, attraverso ciascun thread, nuovi thread, così che ognuno di essi ne abbia in gestione altri, ma riducendo la mole di ciascuno e il costo di ricerca delle informazioni.
 
 \section{Libreria ForkJoin}
 Dato il pesante costo dei thread builtin Java, che portano un pesantissimo overhead (senza considerare la comune necessità di inizializzare migliaia di thread in contemporanea), il corso suggerisce di migrare su un framework alternativo: \textit{ForkJoin}. \\
 Scritto secondo la tecnica presentata come \textit{Fork/Join}, appunto, e seguendo l'idea algoritmica del \textit{divide-et-impera}, fa uso delle seguenti classi:
 \begin{itemize}
 	\item \textit{ForkJoinPool}: contenitore che esegue tutti i task \textit{fork-join} (per un'implementazione corretta, instanziarne sempre uno solo);
-	\item \textit{RecursiveTask<V>}: utilizzato come thread da eseguire - attraverso la sottoclasse - e fa in modo di ritornare un risultato;
+	\item \textit{RecursiveTask$<$V$>$}: utilizzato come thread da eseguire - attraverso la sottoclasse - e fa in modo di ritornare un risultato;
 	\item \textit{RecursiveAction}: come un \textit{RecursiveTask}, ma non ritorna alcun risultato;
-	\item \textit{ForkJoinTask<V>}: è la superclasse del \textit{RecursiveTask<V>} e della \textit{RecursiveAction}, implementa i metodi \textit{fork()} e \textit{join()}. Non verrà mai utilzzato direttamente, ma contiene \textit{Javadoc} molto utili e completi.
+	\item \textit{ForkJoinTask$<$V$>$}: è la superclasse del \textit{RecursiveTask$<$V$>$} e della \textit{RecursiveAction}, implementa i metodi \textit{fork()} e \textit{join()}. Non verrà mai utilzzato direttamente, ma contiene \textit{Javadoc} molto utili e completi.
 \end{itemize}
 
 Per utilizzare il framework, occorre innanzitutto creare un \textit{ForkJoinPool}, utilizzato dall'intero programma (ha quindi senso inserirlo in un campo statico); una volta fatto, si lancia l'\textit{invoke()} del pool sulla \textit{RecursiveAction} (si possono comunque utilizzare i metodi \textit{fork()}, \textit{compute()}, \textit{join()}, sull'istanza della action). \\
@@ -72,14 +72,16 @@ class ExampleThread {
 
 Qualora invece fosse necessario che il thread ritornasse un risultato, occorre utilizzare il \textit{RecursiveTask}, che presenta alcune differenze nella gestione rispetto al vecchio \textit{Thread} builtin:
 \begin{itemize}
-	\item Non estende \textbf{Thread}, ma \textbf{RecursiveTask<T>};
+	\item Non estende \textbf{Thread}, ma \textbf{RecursiveTask$<$T$>$};
 	\item Non fa override di \textbf{run()}, ma di \textbf{compute()};
 	\item Non usa un campo \textbf{ans}, ma ritorna un'istanza di \textbf{V} dal \textbf{compute()};
-	\item Non chiama un metodo \textbf{start()}, ma \textbf{fork()};
-	\textit{}Si chiama il metodo \textbf{join()} per ottenere il risultato;
-	\textit{}Non si chiama il metodo \textbf{run()}, ma si chiama un \textbf{pool} che lo esegua;
+	\item Non chiama un metodo \textbf{start()}, ma \textbf{fork()}; \\
+	\textit{}Si chiama il metodo \textbf{join()} per ottenere il risultato; \\
+	\textit{}Non si chiama il metodo \textbf{run()}, ma si chiama un \textbf{pool} che lo esegua; \\
 	\textit{}Non si chiama, in alternativa, il metodo \textbf{run()}, ma \textbf{compute()}.
 \end{itemize}
+
+\newpage
 
 Quindi, l'implementazione della classe \textit{SumArray} sarà la seguente:
 \begin{lstlisting}
@@ -109,13 +111,13 @@ class SumArray extends RecursiveTask<Integer> {
 
 \paragraph{Note importanti}
 \begin{enumerate}
-	\item \textbf{Sequential threshold}: la libreria suggerisce di fare approssimatamente tra le 100 e le 5000 operazioni di base in ogni sezione del vostro algoritmo;
+	\item \textbf{Sequential threshold}: la libreria suggerisce di fare approssimatamente tra le 100 e le 5000 operazioni di base in ogni sezione del vostro algoritmo (associate ad un'esecuzione sequenziale);
 	\item La libreria necessita di tempo per \textit{scaldarsi}, facendo utilizzo di particolari \textit{cache} che portano ad un miglioramento nella performance dei task lunghi.
 \end{enumerate}
 
 \subsection{Riduzioni}
 Possiamo notare che la somma degli elementi di un array, attraverso l'idea del \textit{divide-et-impera}, ha portato ad un miglioramento, passando da un costo di $O(n)$ sequenziale a quello di $O(\log{n})$ parallelizzato. \\
-Esistono però innumerevoli problemi come questo:
+Esistono altri innumerevoli problemi come questo:
 \begin{itemize}
 	\item Massimo o minimo elemento;
 	\item Esiste un elemento che soddisfa un proprietà;
@@ -123,7 +125,7 @@ Esistono però innumerevoli problemi come questo:
 	\item \ldots
 \end{itemize}
 Le computazioni di questo tipo prendono il nome di \textit{Riduzioni} (o \textit{reduces}), ovvero, che producono una risposta singola da un una collezione, tramite un operatore associativo (esempio: massimo, conteggio, più a destra, più a sinistra, somma, prodotto, \ldots; non esempio: mediana, sottrazione, \ldots). In ogni caso, il risultato non deve necessariamente essere un numero, ma anche un \textit{array}; d'altra parte, alcune informazioni sono inerentemente sequenziali, come per esempio l'elaborazione dell'elemento $arr[i]$, che dipende interamente dall'elaborazione precedente $arr[i-1]$. \\
-L'utilizzo delle \textit{Map} cerca di risolvere questo problema, perchè opera su una collezione indipendentemente, per creare una collezione della stessa dimensione. \\
+L'utilizzo delle \textit{Map} cerca di risolvere questo problema, perchè opera indipendentemente su una collezione, per creare una collezione della stessa dimensione. \\
 Problema \textit{vector addition} con \textit{ForkJoin}:
 \begin{lstlisting}
 class VecAdd extends RecursiveAction {
@@ -168,7 +170,7 @@ Le mappe e le riduzioni sono i cavalli di battaglia della programmazione paralle
 \subsubsection{Alberi bilanciati}
 Le mappe e le riduzioni lavorano molto bene su alberi bilanciati, infatti, per esempio, l'elemento minimo in un albero binario \textit{non ordinato}, ma \textit{bilanciato}, rimane $O(\log{n})$, dati sufficienti processori. \\
 Come calcolare il \textit{sequential cutoff}? Basta salvarsi il numero di discendenti per ciascun nodo, facilmente manutenibile, oppure approssimarlo attraverso, per esempio, l'alteza dell'albero \textit{AVL}. \\
-Inoltre, il tipo di struttura dati influisce pesantemente sulla computazione parallelizzata: per esempio, per il parallelismo, gli alberi bilanciati generalmente lavorano meglio delle liste, riuscendo ad ottenere risultati con tempistiche esponenzialmente più brevi ($O(\log{n}$ contro $O(n)$).
+Inoltre, il tipo di struttura dati influisce pesantemente sulla computazione parallelizzata: per esempio, per il parallelismo, gli alberi bilanciati generalmente lavorano meglio delle liste, riuscendo ad ottenere risultati con tempistiche esponenzialmente più brevi ($O(\log{n})$ contro $O(n)$).
 
 \subsection{Work e Span}
 L'obiettivo principale con il framework \textit{ForkJoin} è  quello di ottenere una performance a runtime asintoticamente ottimale, rispetto al numero di processori disponibile. \\
