@@ -1,0 +1,180 @@
+\section{Legge di Amdahl e Gustafson}
+
+\subsection{Domanda 1}
+Sono forniti dua algoritmi per risolvere un problema su input di dimensione $n$: $A_1$ esegue $n^3$ operazioni, con il $40\%$ di tempo di esecuzione seriale; $A_2$ esegue $n^4$ operazioni, con lo $0.1\%$ di tempo di esecuzione seriale.
+\begin{enumerate}
+	\item Se $A_1$ viene eseguito su una piattaforma con 2 processori e $n = 10^2$, di quanti processori $P$ abbiamo bisogno perch\`{e} l'esecuzione di $A_2$ su $n$ risulti più veloce usando $P$ processori?
+	\paragraph{Soluzione}
+	$T_P = T(f) + T(s) = f + (1-f)/n$. 	Quindi, con $n = 10^2$: \\
+	$T_{P_1} = \frac{40}{10^2}\times n^3 + \frac{\frac{60}{10^2}\times n^3}{2} = \frac{40}{10^2}\times 10^6 + \frac{\frac{60}{10^2}\times 10^6}{2} = 40\times 10^4 + 30\times 10^4 = 70\times 10^4 = 7\times 10^5$ .\\
+	$T_{P_2} = \frac{0,1}{10^2}\times n^4 + \frac{\frac{99,9}{10^2}\times n^4}{P} = \frac{1}{10^3}\times 10^8 +  \frac{\frac{999}{10^3}\times 10^8}{P} = 10^5 + \frac{999}{P}\times 10^5 = 10^5\times(1 + \frac{999}{P})$ . \\
+	$T_{P_2} \leq T_{P_1} \Rightarrow 10^5\times(1 + \frac{999}{P}) \leq 7\times 10^5 \Rightarrow 1 + \frac{999}{P} \leq 7 \Rightarrow \frac{999}{P} \leq 6 \Rightarrow \frac{1}{P} \leq \frac{6}{999} \Rightarrow P \geq \frac{333}{2}$ .
+	\item Qual è lo speedup di $A_2$ su 100 processori in base alla legge di \textit{Amdahl}?
+	\paragraph{Soluzione}
+	$S(n) \leq \frac{1}{f + \frac{1-f}{n}}$. Quindi: \\
+	$S(100) = \frac{1}{\frac{1}{100}+ \frac{1 - \frac{1}{100}}{100}} = \frac{100}{1 + 1 - \frac{1}{100}} = \frac{100}{\frac{100 + 100 - 1}{100}} = \frac{10^4}{199} \simeq 50$ .
+	\item Per lo speedup, è importante che il tempo di esecuzione di $A_2$ sia $n^4$?
+	\paragraph{Soluzione}
+	No, perché nella derivazione della legge di \textit{Amdahl} il tempo si semplifica.
+\end{enumerate}
+
+\newpage
+
+\section{Fork/Join}
+
+\subsection{Domanda 1}
+Il seguente codice Java calcola lo speculare di un array:
+\begin{lstlisting}
+static int[] reverse(int[] array) {
+	int[] answer = new int[array.length];
+	fjPool.invoke(new Reverse(answer, array, 0, array.length));
+	rerutn answer;
+}
+
+class Reverse extends RecursiveAction {
+	int[] in, out;
+	int lo, hi;
+
+	Reverse(int[] o, int[] i, int l, int h) {
+		out = o; in = i; lo = l; hi = h;
+	}
+
+	public void compute() {
+		if (hi == lo+1) {
+			out[in.length - lo - 1] = in[lo];
+		} else {
+			Reverse left  =
+				new Reverse(out,in,lo,(hi+lo)/2);
+			Reverse right =
+				new Reverse(out,in,(hi+lo)/2,hi);
+			left.fork();
+			right.fork();
+			right.join();
+		}
+	}
+}
+\end{lstlisting}
+\begin{itemize}
+	\item Il codice contiene un errore: quale?
+	\paragraph{Soluzione}
+	O viene utilizzato \textit{fork()/join()}, o \textit{compute()}:
+	\begin{lstlisting}
+public void compute() {
+	...
+	left.fork();
+	right.compute();
+	left.join();
+}
+	\end{lstlisting}
+	\item Disegnate il DAG di esecuzione per $n = 4$, etichettando i nodi del DAG in modo da individuare il thread associato a ciascun nodo e la porzione di array su cui il thread opera.
+	\item Discutete \textit{work} e \textit{span} dell'algoritmo in funzione del numero $n$ di elementi dell'array.
+	\item Spiegate in modo sintetico come ottimizzare il codice.
+	\item Se $n = 2^{30}$, quanti thread fork-join sono creati dal codice (opportunamento corretto come descritto al punto \textit{a})? Applicando un cut-off sequenziale di 1024, quanti thread fork-join sarebbero creati?\\
+	\paragraph{Soluzione}
+	Nel primo caso $n/2$, quindi $2^{29}$; nel secondo, $2^{20}$.
+	\item Supponete ora di voler memorizzare l'array speculare \textit{in loco}, ovvero di non avere un array di output ma di voler modificare direttamente l'array di input. Come modifichereste il codice in tale scenario?
+\end{itemize}
+
+\newpage
+
+\subsection{Domanda 2}
+Descrivete l'algoritmo parallelo per la fusione di due array ordinati ($merge$). Illustrate sinteticamente un esempio di esecuzione e analizzate \textit{work} e \textit{span}, assumendo che i due array in input contengano $n$ elementi ciascuno (è sufficiente spiegare come impostare le equazioni di ricorrenza, senza svolgerle esplicitamente).
+
+\newpage
+
+\section{Concorrenza}
+
+\subsection{Domanda 1}
+Considerate il seguente programma Java, il cui scopo è di mantenere il numero di posti liberi in un garage, regolando le entrate di nuove auto:
+\begin{lstlisting}
+class ParkingGarage {
+	private int places;
+
+	public ParkingGarage(int places) {
+		if (places > 0)
+			places = 0;
+		this.places = places;
+	}
+
+	// enter parking garage
+	public synchronized void enter() {
+		while (places == 0);
+		places--;
+	}
+
+	// leave parking garage
+	public synchronized void leave() {
+		places++;
+	}
+}
+\end{lstlisting}
+Durante l'esecuzione il numero $places$ di posti liberi deve essere sempre $\geq 0$. Rispondete alle seguenti domande, motivando le risposte:
+\begin{enumerate}
+	\item Il programma soffre di \textit{race condition}? Se s\`{i}, di che tipo?
+	\paragraph{Soluzione}
+	S\`{i}, soffre di \textit{interleaving}.
+	\item Mostrate un \textit{interleaving} delle istruzioni che porta il programma a non terminare la sua esecuzione.
+	\item Definireste la non-terminazione descritta al punto 2 come un \textit{deadlock}? Perch\`{e}?
+	\item Per ovviare al problema descritto al punto 2, un programmatore modifica il codice come segue (il costrutture e il metodo \textit{leave()} sono inalterati):
+	\begin{lstlisting}
+private synchronized boolean isFull() { return places == 0; }
+private synchronized void reducePlaces() { places--; }
+
+public void enter() {
+	while (isFull());
+	reducePlaces();
+}
+	\end{lstlisting}
+	Il nuovo programma soffre di \textit{race condition}? Il nuovo programma termina sempre correttamente la sua esecuzione?
+	\item Date un'implementazione corretta della classe \textbf{ParkingGarage}, preferibilmente senza attesa passiva (\textit{spin waiting}).
+\end{enumerate}
+
+\subsection{Domanda 2}
+Dite se le seguenti affermazioni sono vere o false, motivando le risposte.
+\begin{enumerate}
+	\item La keyword \textbf{synchronized} garantisce sia la mutua esclusione degli accessi ad un oggetto, sia l'atomicità della sequenza di istruzioni di accesso.
+	\item Se tutti i metodi \textbf{set} che scrivono gli attributi di un oggetto sono \textbf{synchronized}, non è necessario rendere \textbf{synchronized} anche i metodi \textbf{get} che leggono gli attributi dell'oggetto.
+	\item Per avere un \textit{deadlock} un programma deve accedere in mutua esclusione ad almeno due oggetti diversi.
+	\item Un programma che usa un meccanismo di locking consistente può avere \textit{data race}.
+	\item Un programma che usa un meccanismo di locking consistente può avere \textit{bad interleaving}.
+\end{enumerate}
+
+\newpage
+
+\section{OpenCL}
+
+\subsection{Domanda 1}
+Scrivete un kernel \textit{OpenCL} che riceve un array $A$ di interi di dimensione $n$ e calcola un array $B$ di \textit{float} di dimensione $\lfloor n/2 \rfloor$. $B$ è tale che, per ogni posizione dispari $p$ in $A$, $B[p/2]$ contiene la media degli alementi $A[p-1]$, $A[p]$ e $A[p+1]$, se esistono. Discutete qual è lo spazio di indicizzazione e il numero di \textit{work-item} eseguiti.
+
+\paragraph{Soluzione}
+codice:
+\begin{lstlisting}
+__kernel void half(__global const int* A,
+                   __global float* B,
+                   __global const int len) {
+
+	const int pos = get_local_id(0);
+
+	if (pos >= len/2)
+		return;
+
+	if (pos % 2 == 1) {
+		int sum = 0;
+		int cnt = 1;
+		sum += A[pos];
+
+		if (pos > 0) {
+			sum += A[pos-1];
+			cnt += 1;
+		}
+
+		if (pos+1 <= len) {
+			sum += A[pos+1];
+			cnt += 1;
+		}
+
+		B[pos/2] = sum/cnt;
+	}
+}
+\end{lstlisting}
+Lo spazio di indicizzazione è mono-dimensionale e il numero di \textit{work-item} eseguiti è pari alla lunghezza $len$ dell'array $A$.
