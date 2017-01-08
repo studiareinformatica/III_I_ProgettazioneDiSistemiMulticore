@@ -226,3 +226,15 @@ synchronized E dequeue(E elt) {
 \end{lstlisting}
 Altro approccio potrebbe essere chiamare, senza condizione \textit{if}, sempre il \textit{notifyAll()} (o \textit{notify()}), ma questo sarebbe utile soltanto se l'\textit{enqueuer} e il \textit{dequeuer} aspettassero su \textit{variabili condizione} diverse. \\
 In ogni caso, \textit{Java} non sembra supportarlo, ma la classe \textit{ReentrantLock} di \textit{java.util.concurrent.locks} contiene un metodo \textit{newCondition()} che ritorna un nuovo oggetto \textit{Condition} associato al \textit{lock}.
+
+\section{Definizioni}
+Alcuni definizioni utili:
+\begin{itemize}
+	\item \textit{Race condition}: fenomeno in cui il risultato finale dell'esecuzione di diversi thread dipende dalla temporizzazione e/o dalla sequenza con cui i thread vengono eseguiti.
+	\begin{itemize}
+		\item \textit{Data race}: più thread cercano di modificare una risorsa condivisa simultaneamente. A causa delle operazioni di scheduling che potrebbero mettere in \textit{swap} i thread in qualsiasi momento, non è possibile prevedere in maniera accurata in quale ordine effettivo i thread cercheranno di accedere alla risorsa.
+		\item \textit{Bad interleaving}: stato inconsistente derivato dall'esposizione di uno stadio intermedio in un'operazione all'interno di una sezione critica. Esempio: operazione di \textit{add} ad una \textit{stack}, che prima aggiunge un elemento all'array di \textit{backing} interno e poi incrementa il campo \textit{size}.
+	\end{itemize}
+	\item \textit{Mutual exclusion}: la mutua esclusione \`e un meccanismo che permette l'accesso ad una risorsa da al pi\`u un thread per volta.
+	\item \textit{Deadlock}: situazione in cui due (o pi\`u) thread che condividono la stessa risorsa non permettono l'un l'altro di accedere alla stessa, creando una catena e portando ad un blocco definitivo dell'esecuzione di entrambi.
+\end{itemize}
