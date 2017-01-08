@@ -20,6 +20,16 @@ Sono forniti dua algoritmi per risolvere un problema su input di dimensione $n$:
 
 \newpage
 
+\subsection{Domanda 2}
+Rispondete alle seguenti domande, motivando le risposte:
+\begin{enumerate}
+	\item Un programma ha efficienza 50\% usando 16 processori. Qual è la percentuale di codice seriale del programma in base alla legge di \textit{Amdahl}?
+	\item Se un programma $P_1$ ha uno speedup maggiore di un programma $P_2$ e i due programmi eseguono lo stesso work, è vero che $P_1$ è sempre veloce almeno quanto $P_2$? Se l'affermazione è vera dimostratela, altrimenti fornite un controesempio.
+	\item Illustrate la legge di \textit{Gustafson}, dimostrandola e spiegandone le implicazioni.
+\end{enumerate}
+
+\newpage
+
 \section{Fork/Join}
 
 \subsection{Domanda 1}
@@ -56,22 +66,10 @@ class Reverse extends RecursiveAction {
 \end{lstlisting}
 \begin{itemize}
 	\item Il codice contiene un errore: quale?
-	\paragraph{Soluzione}
-	O viene utilizzato \textit{fork()/join()}, o \textit{compute()}:
-	\begin{lstlisting}
-public void compute() {
-	...
-	left.fork();
-	right.compute();
-	left.join();
-}
-	\end{lstlisting}
 	\item Disegnate il DAG di esecuzione per $n = 4$, etichettando i nodi del DAG in modo da individuare il thread associato a ciascun nodo e la porzione di array su cui il thread opera.
 	\item Discutete \textit{work} e \textit{span} dell'algoritmo in funzione del numero $n$ di elementi dell'array.
 	\item Spiegate in modo sintetico come ottimizzare il codice.
-	\item Se $n = 2^{30}$, quanti thread fork-join sono creati dal codice (opportunamento corretto come descritto al punto \textit{a})? Applicando un cut-off sequenziale di 1024, quanti thread fork-join sarebbero creati?\\
-	\paragraph{Soluzione}
-	Nel primo caso $n/2$, quindi $2^{29}$; nel secondo, $2^{20}$.
+	\item Se $n = 2^{30}$, quanti thread fork-join sono creati dal codice (opportunamento corretto come descritto al punto \textit{a})? Applicando un cut-off sequenziale di 1024, quanti thread fork-join sarebbero creati?
 	\item Supponete ora di voler memorizzare l'array speculare \textit{in loco}, ovvero di non avere un array di output ma di voler modificare direttamente l'array di input. Come modifichereste il codice in tale scenario?
 \end{itemize}
 
@@ -79,6 +77,39 @@ public void compute() {
 
 \subsection{Domanda 2}
 Descrivete l'algoritmo parallelo per la fusione di due array ordinati ($merge$). Illustrate sinteticamente un esempio di esecuzione e analizzate \textit{work} e \textit{span}, assumendo che i due array in input contengano $n$ elementi ciascuno (è sufficiente spiegare come impostare le equazioni di ricorrenza, senza svolgerle esplicitamente).
+
+\newpage
+
+\subsection{Domanda 3}
+Immaginate di avere una classe \textit{Worker1} contenente un metodo pubblico \textit{doTask1()}, una classe \textit{Worker2} contenente un metodo pubblico \textit{doTask2()}, \ldots . Supponete inoltre che la vostra applicazione crei quattro thread $T_1$, \ldots, $T_4$ i cui metodi \textit{run()} contengono il seguente codice:
+\begin{itemize}
+	\item[$T_1$] \textit{worker1.doTask1()}; \textit{worker2.doTask2()};
+	\item[$T_2$] \textit{worker5.doTask5()};
+	\item[$T_3$] \textit{worker3.doTask3()};
+	\item[$T_4$] \textit{worker4.doTask4()};
+\end{itemize}
+dove le esecuzioni di \textit{doTask1()}, \textit{doTask3()} e \textit{doTask4()} richiedono 20 unit\`{a} di tempo ciascuna, \textit{doTask2()} ne richiede 30 e \textit{doTask4()} 40. Infine, assumente che il thread \textit{main} esegua il seguente frammento di codice:
+\begin{enumerate}
+	\item $T_1.start()$
+	\item $T_2.start()$
+	\item $T_2.join()$
+	\item $T_3.start()$
+	\item $T_1.join()$
+	\item $T_3.join()$
+	\item $T_4.start()$
+\end{enumerate}
+Rispondete alle seguenti domande, motivando le risposte:
+\begin{enumerate}
+	\item Qual è il minimo tempo per l'esecuzione di questo programma? Mostrate un \textit{interleaving} delle esecuzioni dei metodi \textit{doTask1()}, \ldots, \textit{doTask5()} che permetta di ottenere il minimo tempo di esecuzione.
+	\item Il minimo tempo per l'esecuzione sarebbe diverso se le righe 5 e 6 nel \textit{main} fossero invertite? Perch\`e?
+	\item Avendo un numero sufficiente di processori, potrebbe accadere che \textit{doTask4()} sia eseguito in parallelo a \textit{doTask1()}? Perch\`e?
+	\item Avendo un numero sufficiente di processori, potrebbe accadere che \textit{doTask3()} sia eseguito in parallelo a \textit{doTask1()}? Perch\`e?
+\end{enumerate}
+
+\newpage
+
+\subsection{Domanda 4}
+Descrivete il problema del \textit{packing}, presentate un algoritmo di \textit{packing} parallelo e analizzatene le prestazioni. Discutete inoltre l'applicazione di tale algoritmo al \textit{quicksort}, illustrando l'implementazione di \textit{partition} e analizzando \textit{work}, \textit{span} e \textit{parallelismo} ottenuto nel caso migliore.
 
 \newpage
 
@@ -111,8 +142,6 @@ class ParkingGarage {
 Durante l'esecuzione il numero $places$ di posti liberi deve essere sempre $\geq 0$. Rispondete alle seguenti domande, motivando le risposte:
 \begin{enumerate}
 	\item Il programma soffre di \textit{race condition}? Se s\`{i}, di che tipo?
-	\paragraph{Soluzione}
-	S\`{i}, soffre di \textit{interleaving}.
 	\item Mostrate un \textit{interleaving} delle istruzioni che porta il programma a non terminare la sua esecuzione.
 	\item Definireste la non-terminazione descritta al punto 2 come un \textit{deadlock}? Perch\`{e}?
 	\item Per ovviare al problema descritto al punto 2, un programmatore modifica il codice come segue (il costrutture e il metodo \textit{leave()} sono inalterati):
@@ -138,6 +167,90 @@ Dite se le seguenti affermazioni sono vere o false, motivando le risposte.
 	\item Un programma che usa un meccanismo di locking consistente può avere \textit{data race}.
 	\item Un programma che usa un meccanismo di locking consistente può avere \textit{bad interleaving}.
 \end{enumerate}
+
+\newpage
+
+\subsection{Domanda 3}
+Considerate il seguente programma Java:
+\begin{lstlisting}
+public class Application extends Thread {
+	public static X x;
+	public static Y y;
+	public static Z z;
+	public void run() {
+		z = new Z(); x = new X(z); y = new Y(z);
+		System.out.print("C");
+		execute1();
+		z.h();
+		execute2();
+	}
+	public void execute1() {
+		System.out.print("A");
+		x.start();
+	}
+	public void execute2() {
+		y.start();
+		System.out.print("L");
+	}
+	public static void main(String[] args) {
+		new Application().start();
+	}
+}
+class X extends Thread {
+	public Z z;
+	public X(Z zz) { z = zz; z.n = 0; }
+	public void run() {
+		synchronized(z) {
+			z.n = 1;
+			z.notify():
+			System.out.print("K");
+		}
+	}
+}
+class Y extends Thread {
+	public Z z;
+	public Y(Z zz) { z = zz; }
+	public void run() {
+		System.out.print("J");
+		synchronized(z) {
+			while(z.n == 0) {
+				try {
+					z.wait();
+				} catch (InterruptedException e) {}
+			}
+			System.out.print("Q");
+		}
+	}
+}
+class Z {
+	public int n;
+	public void h() { System.out.print("P"); }
+}
+\end{lstlisting}
+Rispondete alle seguenti domande, motivando le risposte:
+\begin{enumerate}
+	\item Illustrate almeno tre possibili output per il programma e i relativi \textit{interleaving} delle istruzioni \textit{Java} che li producono.
+	\item Dite se le seguenti affermazioni sono vere o false:
+	\begin{enumerate}
+		\item \textit{"A"} \`e sempre stampata per seconda.
+		\item \textit{"K"} \`e sempre stampata dopo \textit{"P"}.
+		\item \textit{"J"} \`e sempre stampata dopo \textit{"P"}.
+		\item \textit{"Q"} pu\`o essere stampata prima di \textit{"K"}.
+	\end{enumerate}
+	\item Supponete che il metodo \textit{h()} nella classe \textit{Z} sia modificato come segue:
+\begin{lstlisting}
+public void h() {
+	n = 100;
+	System.out.print("P");
+}
+\end{lstlisting}
+	Il programma cos\`i modificato soffre di \textit{race condition}? Il programma termina sempre la sua esecuzione producendo una stampa?
+\end{enumerate}
+
+\newpage
+
+\subsection{Domanda 4}
+Spiegate la differenza tra strategie di locking \textit{coarse-grained} e \textit{fine-grained} usando come esempio l'implementazione di liste concorrenti.
 
 \newpage
 
@@ -178,3 +291,16 @@ __kernel void half(__global const int* A,
 }
 \end{lstlisting}
 Lo spazio di indicizzazione è mono-dimensionale e il numero di \textit{work-item} eseguiti è pari alla lunghezza $len$ dell'array $A$.
+
+\newpage
+
+\subsection{Domanda 2}
+Si vogliono trovare tutte le occorrenze di una stringa patterna all'interno di una stringa di ricerca. Si scriva il codice di un kernel \textit{OpenCL} per risolvere tale problema, assumendo che il kernel abbia la seguente intestazione:
+\begin{lstlisting}
+void __kernel PatternMatcher(__global char* pattern_string,
+                               const unsigned long pattern_length,
+                             __global char* buffer_string,
+                               const unsigned long buffer_length,
+                             __global unsigned int* results)
+\end{lstlisting}
+L'array \textit{results} calcolato in output ha lunghezza \textit{buffer\_length} ed è tale che $results[i] = 1$ se le posizioni da $i$ a $i + pattern\_length - 1$ dell'array \textit{buffer\_string} contengono i caratteri della stringa \textit{patter\_string}, 0 altrimenti.
