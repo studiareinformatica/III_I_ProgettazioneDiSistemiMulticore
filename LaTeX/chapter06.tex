@@ -12,10 +12,10 @@ Sono forniti dua algoritmi per risolvere un problema su input di dimensione $n$:
 	\item Qual è lo speedup di $A_2$ su 100 processori in base alla legge di \textit{Amdahl}?
 	\paragraph{Soluzione}
 	$S(n) \leq \frac{1}{f + \frac{1-f}{n}}$. Quindi: \\
-	$S(100) = \frac{1}{\frac{1}{100}+ \frac{1 - \frac{1}{100}}{100}} = \frac{100}{1 + 1 - \frac{1}{100}} = \frac{100}{\frac{100 + 100 - 1}{100}} = \frac{10^4}{199} \simeq 50$ .
+	$S(100) = \frac{1}{\frac{1}{1000}+ \frac{1 - \frac{1}{1000}}{100}} = \frac{1}{\frac{1}{1000} + \frac{\frac{999}{1000}}{100}} = \frac{1}{\frac{1+99900}{1000}} = \frac{1000}{99901} \simeq \frac{1}{10}$ .
 	\item Per lo speedup, è importante che il tempo di esecuzione di $A_2$ sia $n^4$?
 	\paragraph{Soluzione}
-	No, perché nella derivazione della legge di \textit{Amdahl} il tempo si semplifica.
+	No, perché nella derivazione della legge di \textit{Amdahl} il tempo si semplifica: $S(n) = \frac{t_s}{t_n} \leq \frac{t_s}{f\times t_s + \frac{(1-f)\times t_s}{n}} = \frac{1}{f + \frac{1-f}{n}}$
 \end{enumerate}
 
 \newpage
@@ -24,8 +24,32 @@ Sono forniti dua algoritmi per risolvere un problema su input di dimensione $n$:
 Rispondete alle seguenti domande, motivando le risposte:
 \begin{enumerate}
 	\item Un programma ha efficienza 50\% usando 16 processori. Qual è la percentuale di codice seriale del programma in base alla legge di \textit{Amdahl}?
+	\paragraph{Soluzione}
+	$E(n) = \frac{S(n)}{n} = 50\% \\ \frac{1}{n}\times \frac{1}{f+\frac{1-f}{n}} = \frac{5}{10} \Rightarrow n\times (f + \frac{1-f}{n}) = \frac{10}{5} \Rightarrow n\times f + 1 - f = 2 \Rightarrow 16f + 1 - f = 2 \Rightarrow 15f = 1 \Rightarrow f = \frac{1}{15}$
 	\item Se un programma $P_1$ ha uno speedup maggiore di un programma $P_2$ e i due programmi eseguono lo stesso work, è vero che $P_1$ è sempre veloce almeno quanto $P_2$? Se l'affermazione è vera dimostratela, altrimenti fornite un controesempio.
+	\paragraph{Soluzione}
+	La consegna è ambigua:
+	\begin{itemize}
+		\item Se per \textit{work} si intende lo speedup $S(1)$ (ovvero, in contrapposizione allo \textit{span}), allora s\`i, \`e vero.
+		\item Se per \textit{work} si intende il \textit{workload}, allora dipende: dipende dal numero di processori e, in un caso di parit\`a in sede di esecuzione degli algoritmi, dalla frazione sequenziale.
+	\end{itemize}
 	\item Illustrate la legge di \textit{Gustafson}, dimostrandola e spiegandone le implicazioni.
+	\paragraph{Soluzione}
+	La legge di \textit{Gustafson} (1988) detta: $S(n) \leq n - \alpha\times(n-1)$ \\
+	Dove:
+	\begin{itemize}
+		\item[$n$] numero di cores;
+		\item[$a$] parte sequenziale;
+		\item[$b$] parte parallela, eseguita su un solo core;
+		\item[$a+b$] tempo di esecuzione su $n$ core;
+		\item[$a+n\times b$] tempo di esecuzione totale serializzato;
+		\item[$\alpha = \frac{a}{a+b}$] frazione sequenziale del tempo di esecuzione parallelo.
+	\end{itemize}
+	Sostanzialmente, \textit{Gustafson} si accorse che incrementando il numero di processori si potessero risolvere problemi di grandezza maggiore, nello stesso arco di tempo e che, quindi, aumentando il \textit{workload} con il numero di cores si potesse ottenere maggiore speedup. Nasce la definizione di \textit{scaling}:
+	\begin{itemize}
+		\item \textit{strong scaling}: quanto varia il tempo nell'analisi di un campione di dati, all'aumentare del numero dei cores;
+		\item \textit{weak scaling}: se varia il tempo nell'analisi di un campione di dati, all'aumentare del numero di cores.
+	\end{itemize}
 \end{enumerate}
 
 \newpage
@@ -66,17 +90,70 @@ class Reverse extends RecursiveAction {
 \end{lstlisting}
 \begin{itemize}
 	\item Il codice contiene un errore: quale?
+	\paragraph{Soluzione}
+	Per un migliore utilizzo dei thread, occorre lanciare in \textit{fork()} il primo, ottenere il risultato con \textit{compute()} dal secondo e, infine, ottenere il risultato del primo con un \textit{join()}:
+	\begin{lstlisting}
+public void compute() {
+	if (hi == lo+1) {
+		out[in.length - lo - 1] = in[lo];
+	} else {
+		Reverse left  =
+			new Reverse(out,in,lo,(hi+lo)/2);
+		Reverse right =
+			new Reverse(out,in,(hi+lo)/2,hi);
+		left.fork();
+		right.compute();
+		left.join();
+	}
+}
+	\end{lstlisting}
 	\item Disegnate il DAG di esecuzione per $n = 4$, etichettando i nodi del DAG in modo da individuare il thread associato a ciascun nodo e la porzione di array su cui il thread opera.
+	\paragraph{Soluzione}
+	\Tree
+		[.\textsc{\textbf{1} $[0,1,2,3]$}
+			[.\textsc{\textbf{2} $[0,1]$}
+				[.\textsc{\textbf{4} $[0]$} ]
+				[.\textsc{\textbf{5} $[1]$} ]
+			]
+			[.\textsc{\textbf{3} $[2,3]$}
+				[.\textsc{\textbf{6} $[2]$} ]
+				[.\textsc{\textbf{7} $[3]$} ]
+			]
+		]
 	\item Discutete \textit{work} e \textit{span} dell'algoritmo in funzione del numero $n$ di elementi dell'array.
+	\paragraph{Soluzione}
+	L'algoritmo ha \textit{work} pari a $O(n)$ (numero nodi albero) e \textit{span} pari a $O(2\times \log n) = O(\log n)$ (altezza albero).
 	\item Spiegate in modo sintetico come ottimizzare il codice.
+	\paragraph{Soluzione}
+	Come spiegato nel primo punto, è poco ottimizzato lanciare come da consegna i due thread ricorsivi: \`e suggerito invece lanciare in background il primo dei due thread e nel frattempo attendere (dato che tra l'altro i due thread hanno orientativamente lo stesso tempo di esecuzione) attivamente con il \textit{compute()} la conclusione del secondo, per poi riagganciarsi al primo con un \textit{join()} per poterne prelevare il risultato.
 	\item Se $n = 2^{30}$, quanti thread fork-join sono creati dal codice (opportunamento corretto come descritto al punto \textit{a})? Applicando un cut-off sequenziale di 1024, quanti thread fork-join sarebbero creati?
+	\paragraph{Soluzione}
+	$2^{31}$ \\
+	Nel caso di cut-off sequenziale di 1024: $2^{31} - 1024 = 2^{31} - 2^{10} = 2^{21}$
 	\item Supponete ora di voler memorizzare l'array speculare \textit{in loco}, ovvero di non avere un array di output ma di voler modificare direttamente l'array di input. Come modifichereste il codice in tale scenario?
+	\paragraph{Soluzione}
+	In questo scenario itererei parallelamente sulla prima met\`a degli elementi dell'array, sostituendoli quindi con gli speculari, nella seconda met\`a non presa in considerazione nell'iterazione.
 \end{itemize}
 
 \newpage
 
 \subsection{Domanda 2}
 Descrivete l'algoritmo parallelo per la fusione di due array ordinati ($merge$). Illustrate sinteticamente un esempio di esecuzione e analizzate \textit{work} e \textit{span}, assumendo che i due array in input contengano $n$ elementi ciascuno (è sufficiente spiegare come impostare le equazioni di ricorrenza, senza svolgerle esplicitamente).
+\paragraph{Soluzione}
+Il \textit{MergeSort} generico ha \textit{equazione di ricorrenza}: $R(n) = O(n) + 2\times R(\frac{n}{2})$, che per il \textit{Teorema master} \`e pari a $O(n\times \log n)$.
+Le due soluzioni per applicare la parallelizzazione sono le seguenti:
+\begin{enumerate}
+	\item Utilizzare la parallelizzazione nelle chiamate ricorsive, portando ad un miglioramento tale: $R(n) = O(n) + 2\times R(\frac{n}{2}) \Rightarrow O(n) + R(\frac{n}{2})$
+	\item Ottimizzare l'operazione di \textit{merge}: quello che accade \`e che l'array viene splittato in due sottoarray minori o di pari dimensioni o di una differenza di dimensione di 1. In quest'ultimo caso, si sceglie un indice \textit{i} dall'array pi\`u grande perch\`e referenzi l'elemento di mezzo. Nell'array minore, viene scelto un indice \textit{j} tale che, applicata la \textit{ricerca binaria} (di costo $O(\log n)$), alla sua sinistra abbia tutti elementi minori di quello a cui punta l'indice \textit{i} nell'array maggiore. A questo punto vengono lanciate due chiamate ricorsive - parallelamente -, prendendo, nel primo caso, gli array di sinistra, nell'array minore e maggiore, e nel secondo caso quelli di destra. \\
+	Poich\`e l'array maggiore sar\`a diviso sempre in subarray di dimensione $n/4$ e poich\`e, nel caso limite, nell'array maggiore, ci troveremo in una situazione tale che il subarray di sinistra avr\`a dimensione $0$ e quello di destra $3/4 \times n$, allora: $R(n) = O(\log n) + R(\frac{n}{4}) + R(\frac{3\times n}{4}) = O(n)$. \\
+	Applicando poi la parallelizzazione anche su queste chiamate ricorsive: $R(n) = O(\log n) + R(\frac{3\times n}{4}) = O(\log^2 n)$ \\
+	Quindi:
+	\begin{itemize}
+		\item \textit{work}: $O(n) + 2\times R(\frac{n}{2}) = n \times \log n$
+		\item \textit{span}: $O(\log^2 n) + R(\frac{n}{2}) = O(\log^3 n)$
+		\item \textit{parallelismo}: $\frac{n}{\log^2 n}$
+	\end{itemize}
+\end{enumerate}
 
 \newpage
 
@@ -101,15 +178,43 @@ dove le esecuzioni di \textit{doTask1()}, \textit{doTask3()} e \textit{doTask4()
 Rispondete alle seguenti domande, motivando le risposte:
 \begin{enumerate}
 	\item Qual è il minimo tempo per l'esecuzione di questo programma? Mostrate un \textit{interleaving} delle esecuzioni dei metodi \textit{doTask1()}, \ldots, \textit{doTask5()} che permetta di ottenere il minimo tempo di esecuzione.
+	\paragraph{Soluzione}
+	80 unit\`a di tempo.
 	\item Il minimo tempo per l'esecuzione sarebbe diverso se le righe 5 e 6 nel \textit{main} fossero invertite? Perch\`e?
+	\paragraph{Soluzione}
+	No, non cambia, perch\`e \`e in ogni caso compensato dall'attesa pi\`u lunga del \textit{task3}, a seguito del quale il \textit{task1} avrebbe gi\`a ultimato la sua esecuzione.
 	\item Avendo un numero sufficiente di processori, potrebbe accadere che \textit{doTask4()} sia eseguito in parallelo a \textit{doTask1()}? Perch\`e?
+	\paragraph{Soluzione}
+	No, perch\`e l'esecuzione del \textit{task4} \`e condizionata dal precedente \textit{join()} sul \textit{task1}.
 	\item Avendo un numero sufficiente di processori, potrebbe accadere che \textit{doTask3()} sia eseguito in parallelo a \textit{doTask1()}? Perch\`e?
+	\paragraph{Soluzione}
+	S\`i, per la ragione inversa della risposta precedente, ma solamente se il \textit{task1} venga eseguito dopo il \textit{task2}, nel \textit{thread1}.
 \end{enumerate}
 
 \newpage
 
 \subsection{Domanda 4}
 Descrivete il problema del \textit{packing}, presentate un algoritmo di \textit{packing} parallelo e analizzatene le prestazioni. Discutete inoltre l'applicazione di tale algoritmo al \textit{quicksort}, illustrando l'implementazione di \textit{partition} e analizzando \textit{work}, \textit{span} e \textit{parallelismo} ottenuto nel caso migliore.
+\paragraph{Soluzione}
+\begin{itemize}
+	\item \textbf{packing}: pattern per cui venga applicata una condizione di verifica su ciascun elemento di un array in input, restituendo in output un array con i soli elementi per cui tale condizione è verificata. \\
+	Segue tre passaggi: il primo è la generazione di un array bit-vector che inserisca $1$ se la condizione \`e verificata, $0$ altrimenti. Il secondo è la generazione di un array prefix-sum del bit-vector. L'ultimo è la generazione di una mappa, a partire dall'array di input, applicando il filtraggio dell'array generato in seconda fase. \\
+	Ha \textit{work} $O(n)$ e \textit{span} $O(\log n)$.
+	\item \textbf{QuickSort}: ha \textit{equazione di ricorrenza} pari a: $R(n) = O(n) + 2\times R(\frac{n}{2})$ \\
+	Per il \textit{Teorema master}: $O(n\times \log n)$ \\
+	Il \textit{quicksort} segue tre fasi: scelta dell'elemento \textit{pivot} (che assumeremo sia sempre l'elemento mediano), partizionamento e ordinamento. \\
+	Per applicare una parallelizzazione seguiremo due soluzioni:
+	\begin{enumerate}
+		\item rendere le chiamate sui due array ricorsive, ottenendo un miglioramento tale: \textit{work} inalterato, \textit{span} pari a $O(n) + 2\times R(\frac{n}{2}) \Rightarrow O(n) + R(\frac{n}{2})$
+		\item ottimizzazione dell'operazione di partizionamento, utilizzando il \textit{packing}. Viene lanciato un primo \textit{packing} la cui condizione \`e che gli elementi siano $< pivot$, e poi un secondo per cui la condizione sia che gli elementi siano $> pivot$. \\
+		Questo ha \textit{work} $O(n)$ (perch\`e il \textit{work} nei \textit{packing} \`e tale) e \textit{span} $O(n) + R(\frac{n}{2}) \Rightarrow O(\log n) + R(\frac{n}{2})$
+	\end{enumerate}
+	Con queste modifiche arriviamo a:
+	\begin{itemize}
+		\item \textit{work}: $O(n)$
+		\item \textit{span}: $O(\log^2 n)$
+	\end{itemize}
+\end{itemize}
 
 \newpage
 
@@ -122,7 +227,7 @@ class ParkingGarage {
 	private int places;
 
 	public ParkingGarage(int places) {
-		if (places > 0)
+		if (places < 0)
 			places = 0;
 		this.places = places;
 	}
@@ -142,8 +247,14 @@ class ParkingGarage {
 Durante l'esecuzione il numero $places$ di posti liberi deve essere sempre $\geq 0$. Rispondete alle seguenti domande, motivando le risposte:
 \begin{enumerate}
 	\item Il programma soffre di \textit{race condition}? Se s\`{i}, di che tipo?
+	\paragraph{Soluzione}
+	S\`i, soffre di \textit{deadlock}.
 	\item Mostrate un \textit{interleaving} delle istruzioni che porta il programma a non terminare la sua esecuzione.
+	\paragraph{Soluzione}
+	Se un cliente richiede il garace con \textit{places} settato a $0$, allora necessariamente rimarr\`a bloccato sul ciclo \textit{while} del metodo \textit{enter()} senza essere in grado di uscirne.
 	\item Definireste la non-terminazione descritta al punto 2 come un \textit{deadlock}? Perch\`{e}?
+	\paragraph{Soluzione}
+	Perch\`e rimane in attesa di una risorsa, attesa per la quale n\`e il richiedente - il cliente - n\`e l'offerente - il garage - \`e in grado di terminare.
 	\item Per ovviare al problema descritto al punto 2, un programmatore modifica il codice come segue (il costrutture e il metodo \textit{leave()} sono inalterati):
 	\begin{lstlisting}
 private synchronized boolean isFull() { return places == 0; }
@@ -155,17 +266,56 @@ public void enter() {
 }
 	\end{lstlisting}
 	Il nuovo programma soffre di \textit{race condition}? Il nuovo programma termina sempre correttamente la sua esecuzione?
+	\paragraph{Soluzione}
+	Si pu\`o presentare un \textit{data race}, perch\`e nel momento in cui un client riesce ad ottenere il lock \textit{isFull()} e ottiene l'ok, potrebbe venir bloccato dallo scheduler, e lo stesso potrebbe sbloccare all'esecuzione un altro thread che ha fa riesce correttamente a fare il \textit{reducePlace()}. Il primo thread si ritrover\`a in uno stato incosistente.
 	\item Date un'implementazione corretta della classe \textbf{ParkingGarage}, preferibilmente senza attesa passiva (\textit{spin waiting}).
+	\begin{lstlisting}
+class ParkingGarage {
+	private int places;
+	
+	public ParkingGarage(int places) {
+		if (places < 0)
+			places = 0;
+		this.places = places;
+	}
+	
+	// enter parking garage
+	public synchronized void enter() {
+		while (places == 0) {
+			this.wait();
+		}
+		places--;
+	}
+	
+	// leave parking garage
+	public synchronized void leave() {
+		places++;
+		this.notify();
+	}
+}
+	\end{lstlisting}
 \end{enumerate}
+
+\newpage
 
 \subsection{Domanda 2}
 Dite se le seguenti affermazioni sono vere o false, motivando le risposte.
 \begin{enumerate}
-	\item La keyword \textbf{synchronized} garantisce sia la mutua esclusione degli accessi ad un oggetto, sia l'atomicità della sequenza di istruzioni di accesso.
-	\item Se tutti i metodi \textbf{set} che scrivono gli attributi di un oggetto sono \textbf{synchronized}, non è necessario rendere \textbf{synchronized} anche i metodi \textbf{get} che leggono gli attributi dell'oggetto.
+	\item La keyword \textit{synchronized} garantisce sia la mutua esclusione degli accessi ad un oggetto, sia l'atomicità della sequenza di istruzioni di accesso.
+	\paragraph{Soluzione}
+	No, garantisce solo la prima.
+%	\item Se tutti i metodi \textit{set} che scrivono gli attributi di un oggetto sono \textit{synchronized}, non è necessario rendere \textit{synchronized} anche i metodi \textittwjdjlkgfhskdfjhsdkf{get} che leggono gli attributi dell'oggetto.
+	\paragraph{Soluzione}
+	Falso, non si eviterebbero \textit{data race} (un thread richiede in \textit{get} una risorsa, mentre questa sta venendo modificata tramite \textit{set}: non avendo il \textit{get} alcun lock, otterr\`a una risposta incosistente).
 	\item Per avere un \textit{deadlock} un programma deve accedere in mutua esclusione ad almeno due oggetti diversi.
+	\paragraph{Soluzione}
+	Falso, anche ad uno solo (vedi esercizio precedente).
 	\item Un programma che usa un meccanismo di locking consistente può avere \textit{data race}.
+	\paragraph{Soluzione}
+	Falso.
 	\item Un programma che usa un meccanismo di locking consistente può avere \textit{bad interleaving}.
+	\paragraph{Soluzione}
+	Vero.
 \end{enumerate}
 
 \newpage
@@ -245,12 +395,38 @@ public void h() {
 }
 \end{lstlisting}
 	Il programma cos\`i modificato soffre di \textit{race condition}? Il programma termina sempre la sua esecuzione producendo una stampa?
+	\item Supponete che il metodo \textit{h()} nella classe \textit{Z} sia modificato come segue:
+\begin{lstlisting}
+synchronized void h() {
+	n = 0;
+	System.out.print("P");
+}
+\end{lstlisting}
+Il programma cos\`i modificato soffre di \textit{race condition}? Il programma termina sempre la sua esecuzione producendo una stampa?
 \end{enumerate}
+
 
 \newpage
 
 \subsection{Domanda 4}
 Spiegate la differenza tra strategie di locking \textit{coarse-grained} e \textit{fine-grained} usando come esempio l'implementazione di liste concorrenti.
+\paragraph{Soluzione}
+\begin{itemize}
+	\item \textit{coarse-grained}: utilizzo di meno \textit{lock} per pi\`u oggetti;
+	\item \textit{fine-grained}: utilizzo di pi\`u \textit{lock} per pi\`u oggetti.
+\end{itemize}
+L'implementazione nel caso delle liste concorrenti \`e dettata da alcune regole strutturali di questo tipo di liste:
+\begin{itemize}
+	\item avendo una lista linkata, ogni nodo referenzia il successivo;
+	\item per ogni operazione, occorre iterare sull'intera lista sequenzialmente.
+\end{itemize}
+Quindi, le implementazioni:
+\begin{enumerate}
+	\item \textit{coarse-grained}: per ogni operazione - sia di \textit{read} che \textit{write} - bisogna acquisire il \textit{lock} sull'intera lista. Questa implementazione porta ad un \textit{bottleneck} eccessivo.
+	\item \textit{fine-grained}: non \`e possibile inserire un lock per nodo, proprio per una caratteristica di struttura della lista, perch\`e si avrebbe incosistenza causata dal fatto che ogni nodo referenzia anche il successivo. Perci\`o è utile, per qualsiasi modifica, acquisire il lock sul nodo e sul suo predecessore. \\
+	Anche questa soluzione potrebbe rallentare inutilmente perch\`e, dovendosi scorrere ogni volta l'intera lista, per ogni lock incontrato, bisognerebbe attendere di avere la possibilit\`a di acquisirlo, anche se non direttamente necessario alla modifica desiderata.
+	\item \textit{reader/writer}: come nel caso del \textit{fine-grained}, ma si ha un sistema di priorit\`a. Il client che itera per una modifica, lo fa da reader, quando arriva al nodo interessato (col suo predecessore), fa un \textit{upgrade} e acquisisce i lock da writer. In ogni caso, si ripresenta il problema che i writer sono bloccanti in ogni caso.
+\end{enumerate}
 
 \newpage
 
@@ -267,9 +443,6 @@ __kernel void half(__global const int* A,
                    __global const int len) {
 
 	const int pos = get_local_id(0);
-
-	if (pos >= len/2)
-		return;
 
 	if (pos % 2 == 1) {
 		int sum = 0;
@@ -290,7 +463,8 @@ __kernel void half(__global const int* A,
 	}
 }
 \end{lstlisting}
-Lo spazio di indicizzazione è mono-dimensionale e il numero di \textit{work-item} eseguiti è pari alla lunghezza $len$ dell'array $A$.
+Lo spazio di indicizzazione è mono-dimensionale e il numero di \textit{work-item} eseguiti è pari alla lunghezza $len$ dell'array $A$. \\
+Occorre passare come \textit{global\_size} la lunghezza dell'array $A$.
 
 \newpage
 
@@ -304,3 +478,26 @@ void __kernel PatternMatcher(__global char* pattern_string,
                              __global unsigned int* results)
 \end{lstlisting}
 L'array \textit{results} calcolato in output ha lunghezza \textit{buffer\_length} ed è tale che $results[i] = 1$ se le posizioni da $i$ a $i + pattern\_length - 1$ dell'array \textit{buffer\_string} contengono i caratteri della stringa \textit{patter\_string}, 0 altrimenti.
+\paragraph{Soluzione}
+codice:
+\begin{lstlisting}
+__kernel void PatternMatcher(__global char* pattern_string,
+                               const unsigned long pattern_length,
+                             __global char* buffer_string,
+                               const unsigned long buffer_length,
+                             __global unsigned int* results) {
+
+	int i = get_global_id(0);
+
+	if (buffer_string[i] == pattern_string[0]) {
+		for (int j = 1; j < pattern_length; j++) {
+			if (i+j > buffer_length ||
+			buffer_string[i+j] != pattern_string[j]) {
+				buffer_string[i] = 0;
+				return;
+			}
+		}
+		buffer_string[i] = 1;
+	}
+}
+\end{lstlisting}
