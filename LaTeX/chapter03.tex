@@ -37,9 +37,15 @@ Se la proprietà è vera per l'iterazione $i$, vuol dire che è vera anche per l
 	\item quindi, dopo l'iterazione $i+1$, $A[x]$ conterrà la somma (al massimo) dei suoi $2^{i} + 2^{i} = 2^{i+1}$ elementi immediatamente precedenti.
 \end{itemize}
 
-\subsubsection{Analisi dell'algoritmo}
+\paragraph{Analisi}
 Avremo $\log{n}$ iterazioni, quindi $span = O(\log{n})$; inoltre, ogni iterazione avrà $work = O(n)$, per un totale di $\Theta(n\times \log{n})$. \\
-Quindi il \textit{work} è più alto rispetto alla soluzione sequenziale, ma si riesce a parallelizzare. La soluzione \textit{parallel-prefix} ha un parallelismo di $\frac{n}{\log{n}}$, quindi, speedup esponenziale. \\
+Quindi il \textit{work} è più alto rispetto alla soluzione sequenziale, ma si riesce a parallelizzare.
+
+\begin{center}
+	\includegraphics[width=1\textwidth]{res/hillis_and_steele.png} \hfill
+\end{center}
+
+\subsubsection{Prefix sum (parallel-prefix)}
 Questo tipo di soluzione, compie due passi:
 \begin{enumerate}
 	\item costruisce un albero in un movimento \textit{bottom-up}, il passo \textit{up}: crea un albero binario, dove la radice ha somma nell'intervallo $[0,n)$ e dove se un nodo ha somma nell'intervallo $[lo, hi)$ e $hi>lo$, allora:
@@ -68,7 +74,7 @@ for (i=lo+1; i<hi; i++)
 	output[i] = output[i-1] + input[i];
 \end{lstlisting}
 
-\subsection{Problemi con condizione di verifica}
+\subsection{Packs: problemi con condizione di verifica}
 Dato un array \textit{input}, produrre un array \textit{output} contenente solo gli elementi per cui $f(element)$ è \textit{true}. \\
 Esempio:
 \begin{center}
@@ -130,17 +136,22 @@ L'algoritmo ha un \textit{work} $O(n)$ e \textit{span} $O(\log{n})$.
 		\hline
 	\end{tabular}
 \end{center}
-L'approccio più semplice è eseguire il terzo passo in parallelo, con i seguenti risultati: \textit{work} $\Theta(n\times \log{n})$ inalterato, \textit{span} $T(n) = \Theta(n) + 1T(\frac{n}{2}) = \Theta(n)$ alterato e quindi \textit{parallelismo} $O(\log{n})$. \\
-Avere uno speedup di $O(\log{n})$ con un numero infinito di processori non è un granché, si può fare molto meglio se parallelizzata anche la fase di partizionamento:
+ha \textit{equazione di ricorrenza} pari a: $R(n) = O(n) + 2\times R(\frac{n}{2})$ \\
+Per il \textit{Teorema master}: $O(n\times \log n)$ \\
+Il \textit{quicksort} segue tre fasi: scelta dell'elemento \textit{pivot} (che assumeremo sia sempre l'elemento mediano), partizionamento e ordinamento. \\
+Per applicare una parallelizzazione seguiremo due soluzioni:
+\begin{enumerate}
+	\item rendere le chiamate sui due array ricorsive, ottenendo un miglioramento tale: \textit{work} inalterato, \textit{span} pari a $O(n) + 2\times R(\frac{n}{2}) \Rightarrow O(n) + R(\frac{n}{2})$
+	\item ottimizzazione dell'operazione di partizionamento, utilizzando il \textit{packing}. Viene lanciato un primo \textit{packing} la cui condizione \`e che gli elementi siano $< pivot$, e poi un secondo per cui la condizione sia che gli elementi siano $> pivot$. \\
+	Questo ha \textit{work} $O(n)$ (perch\`e il \textit{work} nei \textit{packing} \`e tale) e \textit{span} $O(n) + R(\frac{n}{2}) \Rightarrow O(\log n) + R(\frac{n}{2})$
+\end{enumerate}
+Con queste modifiche arriviamo a:
 \begin{itemize}
-	\item si prenda come \textit{pivot} il mediano dell'albero;
-	\item inserire gli elementi minori del \textit{pivot} in un array ausiliario \textit{aux}, poi il \textit{pivot} e poi i maggiori;
-	\item lanciati i sort paralleli ricorsivamente sui due subarray.
+	\item \textit{work}: $O(n)$
+	\item \textit{span}: $O(\log^2 n)$
 \end{itemize}
-Per ogni \textit{pack}, abbiamo un \textit{work} di $O(n)$ e \textit{span} $O(\log{n})$. Con $O(\log{n})$ di \textit{span} per il partizionamento, il miglior caso in assoluto e l'atteso per il \textit{quicksort} è:
-\begin{center}
-	$T(n) = O(\log{n}) + 1T(\frac{n}{2}) = O(\log^{2}{n})$
-\end{center}
+
+\newpage
 
 \subsection{MergeSort parallelo}
 \begin{center}
@@ -152,12 +163,21 @@ Per ogni \textit{pack}, abbiamo un \textit{work} di $O(n)$ e \textit{span} $O(\l
 		\hline
 	\end{tabular}
 \end{center}
-Esattamente come nel \textit{quicksort}, eseguire i due ordinamenti in parallelo cambia lo \textit{span} in $T(n) = O(n) + 1T(\frac{n}{2}) = O(n)$. Ancora, il \textit{parallelismo} è di $O(\log{n})$. Perciò, per migliorare, occorre parallelizzare il \textit{merge} dei due risultati (non utilizzando il \textit{parallel-prefix}, questa volta). \\
-Dovendo unire i due subarray, consideriamo che quello di grandezza maggiore dei due abbia $m$ elementi. Quindi, in parallelo:
-\begin{itemize}
-	\item unire i primi $m/2$ elementi della metà più grande con gli elementi appropriati della metà minore;
-	\item unire i secondi $m/2$ elementi della metà più grande con il resto della metà minore.
-\end{itemize}
+Il \textit{MergeSort} generico ha \textit{equazione di ricorrenza}: $R(n) = O(n) + 2\times R(\frac{n}{2})$, che per il \textit{Teorema master} \`e pari a $O(n\times \log n)$.
+Le due soluzioni per applicare la parallelizzazione sono le seguenti:
+\begin{enumerate}
+	\item Utilizzare la parallelizzazione nelle chiamate ricorsive, portando ad un miglioramento tale: $R(n) = O(n) + 2\times R(\frac{n}{2}) \Rightarrow O(n) + R(\frac{n}{2})$
+	\item Ottimizzare l'operazione di \textit{merge}: quello che accade \`e che l'array viene splittato in due sottoarray minori o di pari dimensioni o di una differenza di dimensione di 1. In quest'ultimo caso, si sceglie un indice \textit{i} dall'array pi\`u grande perch\`e referenzi l'elemento di mezzo. Nell'array minore, viene scelto un indice \textit{j} tale che, applicata la \textit{ricerca binaria} (di costo $O(\log n)$), alla sua sinistra abbia tutti elementi minori di quello a cui punta l'indice \textit{i} nell'array maggiore. A questo punto vengono lanciate due chiamate ricorsive - parallelamente -, prendendo, nel primo caso, gli array di sinistra, nell'array minore e maggiore, e nel secondo caso quelli di destra. \\
+	Poich\`e l'array maggiore sar\`a diviso sempre in subarray di dimensione $n/4$ e poich\`e, nel caso limite, nell'array maggiore, ci troveremo in una situazione tale che il subarray di sinistra avr\`a dimensione $0$ e quello di destra $3/4 \times n$, allora: $R(n) = O(\log n) + R(\frac{n}{4}) + R(\frac{3\times n}{4}) = O(n)$. \\
+	Applicando poi la parallelizzazione anche su queste chiamate ricorsive: $R(n) = O(\log n) + R(\frac{3\times n}{4}) = O(\log^2 n)$ \\
+	Quindi:
+	\begin{itemize}
+		\item \textit{work}: $O(n) + 2\times R(\frac{n}{2}) = n \times \log n$
+		\item \textit{span}: $O(\log^2 n) + R(\frac{n}{2}) = O(\log^3 n)$
+		\item \textit{parallelismo}: $\frac{n}{\log^2 n}$
+	\end{itemize}
+\end{enumerate}
+
 
 \newpage
 
