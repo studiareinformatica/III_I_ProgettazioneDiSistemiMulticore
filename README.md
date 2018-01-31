@@ -1,9 +1,9 @@
 # Programmazione di Sistemi Multicore
-####*2016/2017 · III Anno · I Semestre*
+#### *2016/2017 · III Anno · I Semestre*
 
 ----
-##Linee Guida
-####Repository
+## Linee Guida
+#### Repository
 Il titolo della repository è da mantenere nel formato `NumeroAnno_NumeroSemestre_NomeCorso`. La sua struttura è simile alla seguente:
 
 ```bash
@@ -26,7 +26,7 @@ I_I_MetodologieDiProgrammazione/
 		res/ # immagini, allegati, etc.
 ```
 
-####Commit
+#### Commit
 Per favorire la comprensione di ogni commit da parte di tutti, si consiglia il formato seguente per i *commit messages*:
 
 `nome branch: categoria update: breve descrizione`.
